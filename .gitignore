@@ -1,0 +1,40 @@
+# Ambiente
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Build / Dist
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtualenvs
+venv/
+.venv/
+env/
+ENV/
+
+# Banco SQLite (em database/) — schema vai pro git, dados não
+database/*.sqlite
+database/*.sqlite3
+database/*.db
+*.sqlite
+*.sqlite3
+*.db
+
+# IDE / SO
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+*.log

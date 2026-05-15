@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Produção — AtoriArt{% endblock %}
+{% block body_class %}has-sidebar{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/catalogo.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/producao.css') }}" />
+{% endblock %}
+
+{% block layout %}
+{% include "_sidebar.html" %}
+
+<main class="content">
+  <header class="content__header">
+    <div>
+      <h1 class="content__title">Produção</h1>
+      <p class="content__subtitle">
+        Estoque das peças produzidas e histórico de produções.
+        Peças com estoque maior que zero aparecem automaticamente no catálogo.
+      </p>
+    </div>
+    <div class="content__header-acoes">
+      <a class="btn btn--ghost" href="{{ url_for('producao.peca_nova') }}">
+        Nova peça
+      </a>
+      <a class="btn btn--primary" href="{{ url_for('producao.nova') }}">
+        Registrar produção
+      </a>
+    </div>
+  </header>
+
+  {# ===== Bloco 1: Estoque atual ===== #}
+  <section class="cards" aria-label="Indicadores de estoque">
+    <article class="card">
+      <p class="card__label">Modelos em estoque</p>
+      <p class="card__value">{{ modelos_em_estoque }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Peças em estoque</p>
+      <p class="card__value">{{ pecas_em_estoque }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Custo total investido</p>
+      <p class="card__value">R$ {{ '%.2f'|format(custo_investido) }}</p>
+    </article>
+  </section>
+
+  <section class="catalogo">
+    <h2 class="catalogo__titulo">Estoque atual</h2>
+
+    {% if not pecas_estoque %}
+      <p class="catalogo__vazio">
+        Nenhuma peça em estoque ainda.
+        <a href="{{ url_for('producao.peca_nova') }}">Cadastre uma peça</a>
+        e registre uma produção para preencher o estoque.
+      </p>
+    {% else %}
+      <ol class="catalogo__lista">
+        {% for peca in pecas_estoque %}
+          <li class="peca">
+            <div class="peca__topo">
+              <div class="peca__info">
+                <strong class="peca__nome">{{ peca.nome }}</strong>
+                <span class="peca__valores">
+                  {{ peca.quantidade_estoque }} em estoque
+                  • R$ {{ '%.2f'|format(peca.custo_producao) }} por peça
+                  • Total investido R$ {{ '%.2f'|format(peca.custo_producao * peca.quantidade_estoque) }}
+                </span>
+              </div>
+              <div class="peca__acoes">
+                <a class="btn btn--ghost"
+                   href="{{ url_for('producao.peca_editar', peca_id=peca.id) }}">Editar peça</a>
+                <form method="POST"
+                      action="{{ url_for('producao.peca_apagar', peca_id=peca.id) }}"
+                      class="peca__form-apagar">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                  <button type="submit" class="btn btn--ghost peca__btn-apagar">Apagar peça</button>
+                </form>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  </section>
+
+  {# ===== Bloco 2: Histórico de produções ===== #}
+  <section class="producoes producoes--historico">
+    <h2 class="producoes__titulo">
+      Histórico recente
+      <span class="producoes__subtitulo">
+        — últimos {{ janela_dias }} dias
+        {% if total_producoes %}
+          • {{ total_producoes }} produções
+          • {{ pecas_produzidas_janela }} peças produzidas
+          • R$ {{ '%.2f'|format(custo_total_janela) }} em custo
+        {% endif %}
+      </span>
+    </h2>
+
+    {% if not producoes %}
+      <p class="producoes__vazio">
+        Nenhuma produção registrada nos últimos {{ janela_dias }} dias.
+      </p>
+    {% else %}
+      <ol class="producoes__lista">
+        {% for p in producoes %}
+          <li class="producao">
+            <div class="producao__topo">
+              <div class="producao__info">
+                <span class="producao__data">{{ p.data }}</span>
+                <strong class="producao__peca">{{ p.peca_nome }}</strong>
+                <span class="producao__valores">
+                  {{ p.quantidade }} un • R$ {{ '%.2f'|format(p.custo_subtotal) }}
+                </span>
+              </div>
+              <div class="producao__acoes">
+                <form method="POST"
+                      action="{{ url_for('producao.apagar', producao_id=p.id) }}"
+                      class="producao__form-apagar">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                  <button type="submit" class="btn btn--ghost producao__btn-apagar">Apagar</button>
+                </form>
+              </div>
+            </div>
+            {% if p.observacao %}
+              <p class="producao__obs">{{ p.observacao }}</p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

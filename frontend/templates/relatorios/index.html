@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Relatórios — AtoriArt{% endblock %}
+{% block body_class %}has-sidebar{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/relatorios.css') }}" />
+{% endblock %}
+
+{% block layout %}
+{% include "_sidebar.html" %}
+
+<main class="content">
+  <header class="content__header">
+    <div>
+      <h1 class="content__title">Relatórios</h1>
+      <p class="content__subtitle">
+        Visão consolidada dos últimos {{ janela_dias }} dias
+        ({{ total_vendas }} vendas registradas).
+      </p>
+    </div>
+  </header>
+
+  <section class="cards" aria-label="Indicadores financeiros">
+    <article class="card">
+      <p class="card__label">Faturamento</p>
+      <p class="card__value">R$ {{ '%.2f'|format(faturamento) }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Custo de produção</p>
+      <p class="card__value">R$ {{ '%.2f'|format(custo_total) }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Lucro bruto</p>
+      <p class="card__value">R$ {{ '%.2f'|format(lucro) }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Margem</p>
+      <p class="card__value">{{ '%.1f'|format(margem) }}%</p>
+    </article>
+  </section>
+
+  {# ---------- Top 5 peças mais lucrativas ---------- #}
+  <section class="relatorio-secao">
+    <h2 class="relatorio-secao__titulo">Peças mais lucrativas</h2>
+    {% if not top_pecas %}
+      <p class="relatorio-secao__vazio">Nenhuma venda no período.</p>
+    {% else %}
+      <ol class="ranking">
+        {% for p in top_pecas %}
+          <li class="ranking__item">
+            <span class="ranking__nome">{{ p.peca_nome }}</span>
+            <span class="ranking__info">
+              {{ p.quantidade }} un • R$ {{ '%.2f'|format(p.faturamento) }} fat.
+            </span>
+            <span class="ranking__lucro">
+              Lucro: R$ {{ '%.2f'|format(p.lucro) }}
+              <small>({{ '%.1f'|format(p.margem) }}%)</small>
+            </span>
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  </section>
+
+  {# ---------- Distribuição por forma de pagamento ---------- #}
+  <section class="relatorio-secao">
+    <h2 class="relatorio-secao__titulo">Formas de pagamento</h2>
+    {% if not formas_pagamento %}
+      <p class="relatorio-secao__vazio">Nenhuma venda no período.</p>
+    {% else %}
+      <ul class="pagamentos">
+        {% for f in formas_pagamento %}
+          <li class="pagamento">
+            <div class="pagamento__cabecalho">
+              <span class="pagamento__nome">{{ f.forma }}</span>
+              <span class="pagamento__valor">
+                R$ {{ '%.2f'|format(f.valor) }}
+                <small>({{ '%.1f'|format(f.pct) }}%)</small>
+              </span>
+            </div>
+            <meter class="pagamento__barra"
+                   min="0" max="100" value="{{ '%.2f'|format(f.pct) }}"
+                   aria-label="Porcentagem do faturamento via {{ f.forma }}">
+              {{ '%.1f'|format(f.pct) }}%
+            </meter>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+
+  {# ---------- Tabela detalhada por peça ---------- #}
+  <section class="relatorio-secao">
+    <h2 class="relatorio-secao__titulo">Detalhamento por peça</h2>
+    {% if not pecas_detalhe %}
+      <p class="relatorio-secao__vazio">Nenhuma venda no período.</p>
+    {% else %}
+      <div class="tabela-wrap">
+        <table class="tabela-pecas">
+          <thead>
+            <tr>
+              <th>Peça</th>
+              <th class="num">Vendas</th>
+              <th class="num">Qtd</th>
+              <th class="num">Faturamento</th>
+              <th class="num">Custo</th>
+              <th class="num">Lucro</th>
+              <th class="num">Margem</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in pecas_detalhe %}
+              <tr>
+                <td>{{ p.peca_nome }}</td>
+                <td class="num">{{ p.vendas }}</td>
+                <td class="num">{{ p.quantidade }}</td>
+                <td class="num">R$ {{ '%.2f'|format(p.faturamento) }}</td>
+                <td class="num">R$ {{ '%.2f'|format(p.custo) }}</td>
+                <td class="num">R$ {{ '%.2f'|format(p.lucro) }}</td>
+                <td class="num">{{ '%.1f'|format(p.margem) }}%</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

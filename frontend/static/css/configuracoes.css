@@ -1,0 +1,121 @@
+/* ============================================================
+   AtoriArt — configuracoes.css
+   Página de Configurações. 3 cards informativos verticais.
+   ============================================================ */
+
+.content__subtitle {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+/* ---------- Card de configuração ---------- */
+.config-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+}
+
+.config-card__titulo {
+  font-size: 1.1rem;
+  margin-bottom: 14px;
+  color: var(--color-text);
+}
+
+/* ---------- Lista chave/valor (definition list) ---------- */
+.config-lista {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.config-item {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.config-item:last-child { border-bottom: none; }
+
+.config-item dt {
+  color: var(--color-muted);
+  font-size: 0.88rem;
+}
+.config-item dd {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.94rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Em telas estreitas: empilha label e valor */
+@media (max-width: 560px) {
+  .config-item {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+/* Código inline (caminhos, comandos) */
+.config-item dd code,
+.config-card__nota code {
+  background: var(--color-surface-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.88em;
+  border: 1px solid var(--color-border);
+}
+
+/* ---------- Nota informativa ---------- */
+.config-card__nota {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--color-surface-2);
+  border-left: 3px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.88rem;
+  color: var(--color-muted);
+}
+
+/* ---------- Ação do card (form com botão) ---------- */
+.config-card__acao {
+  margin: 14px 0 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.config-card__btn-danger { color: var(--color-danger); }
+.config-card__btn-danger:hover {
+  background: rgba(177, 58, 58, 0.06);
+  border-color: rgba(177, 58, 58, 0.3);
+}
+
+/* ---------- Badges de status ---------- */
+.badge-cfg {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.badge-cfg--ok {
+  background: rgba(62, 142, 94, 0.08);
+  color: var(--color-success);
+  border-color: rgba(62, 142, 94, 0.3);
+}
+.badge-cfg--warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border-color: var(--color-warning-border);
+}

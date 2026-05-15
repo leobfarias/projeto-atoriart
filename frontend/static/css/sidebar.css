@@ -1,0 +1,80 @@
+/* ============================================================
+   AtoriArt — sidebar.css
+   Painel lateral fixo. Estilo independente do conteúdo da página.
+   ============================================================ */
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+.sidebar__brand { padding: 0 8px; }
+.sidebar__logo {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+.sidebar__tagline {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  margin-top: 2px;
+}
+
+.sidebar__nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sidebar__section-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  padding: 0 8px;
+  margin-bottom: 6px;
+}
+
+.sidebar__list { display: flex; flex-direction: column; gap: 2px; }
+
+.sidebar__link {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: 0.92rem;
+  font-weight: 500;
+  transition: background 120ms ease, color 120ms ease;
+}
+.sidebar__link:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+.sidebar__link.is-active {
+  background: var(--color-primary);
+  color: #fff;
+}
+.sidebar__link.is-active:hover {
+  background: var(--color-primary-hover);
+  color: #fff;
+}
+.sidebar__link.is-disabled {
+  color: var(--color-muted);
+  cursor: not-allowed;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.sidebar__logout { padding: 0 4px; }

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Entrar — AtoriArt{% endblock %}
+{% block body_class %}page-login{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}" />
+{% endblock %}
+
+{% block layout %}
+<main class="login">
+  <section class="login__card" aria-labelledby="login-title">
+    <header class="login__brand">
+      <h1 class="login__logo">AtoriArt</h1>
+      <p class="login__tagline">Gestão de Artesanato</p>
+    </header>
+    <h2 id="login-title" class="login__title">Acesso administrativo</h2>
+
+    <form method="POST" action="{{ url_for('auth.login') }}" class="login__form" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+      <label class="field">
+        <span class="field__label">Usuário</span>
+        <input class="field__input" type="text" name="username" required autofocus />
+      </label>
+
+      <label class="field">
+        <span class="field__label">Senha</span>
+        <input class="field__input" type="password" name="password" required />
+      </label>
+
+      <button type="submit" class="btn btn--primary btn--block">Entrar</button>
+    </form>
+  </section>
+</main>
+{% endblock %}

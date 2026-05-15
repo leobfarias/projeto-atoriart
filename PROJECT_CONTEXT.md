@@ -1,0 +1,423 @@
+# PROJECT_CONTEXT.md — AtoriArt
+
+> **Para Claude (e qualquer dev novo):** este é o documento oficial de
+> contexto do projeto. **Leia este arquivo antes de qualquer alteração.**
+> Ele descreve stack, arquitetura, convenções, decisões e estado atual.
+> Atualize-o ao final de cada etapa.
+
+---
+
+## 1. O que é o AtoriArt
+
+Sistema web administrativo de **gestão de estoque para artesanato**. Cliente
+única, sem cadastro público, apenas um administrador autenticado. Será
+publicado na internet, então segurança é prioridade desde a Etapa 1.
+
+**Domínio (visão geral, será detalhado por etapa):**
+- **Catálogo** — vitrine: lista apenas peças com `quantidade_estoque > 0`
+  (disponíveis para venda). Somente leitura.
+- **Produção** — controle de estoque + cadastro/edição de peças + log
+  de produções. Peça "nasce" aqui.
+- Matéria-prima em estoque (com mínimos para alerta).
+- Vendas (faturamento bruto).
+- Despesas (para cálculo de receita líquida).
+- Relatórios.
+- Configurações.
+
+---
+
+## 2. Stack obrigatória
+
+| Camada        | Tecnologia                       |
+|---------------|----------------------------------|
+| Backend       | Python 3.10+ / Flask 3.x         |
+| Frontend      | HTML + CSS + Jinja2              |
+| Banco         | SQLite (módulo `sqlite3` stdlib) |
+| Config        | python-dotenv                    |
+| Segurança     | werkzeug.security, hmac, secrets |
+
+**Proibido nesta arquitetura:**
+- JavaScript como tecnologia principal de frontend (pequenos enhancements ok
+  depois, somente se necessário).
+- Frameworks de frontend (React, Vue, etc.).
+- Outros bancos (Postgres, MySQL, etc.).
+- ORMs além de `sqlite3` (SQLAlchemy só com aprovação explícita do dono).
+- CSS inline em templates.
+- Regra de negócio em template Jinja.
+
+---
+
+## 3. Arquitetura
+
+### 3.1 Camadas e responsabilidades
+
+```
+HTTP request
+   ↓
+Blueprint (controller)   ← apenas roteamento, parsing de form, redirect
+   ↓
+Service                  ← regras de negócio, monta ViewModel
+   ↓
+Repository               ← SQL bruto contra SQLite
+   ↓
+Model (dataclass)        ← entidade do domínio
+```
+
+**Regra de ouro:**
+- Blueprint pode importar `services`, `security`. NÃO importa repositórios
+  ou SQL.
+- Service pode importar `repositories`, `models`. Não conhece Flask.
+- Repository conhece SQL. Não conhece HTTP nem regra.
+- Model é dataclass pura. Sem dependências internas.
+- Template **só exibe**. Recebe ViewModel pronto. Nada de regra ou
+  formatação não-trivial — formatação pesada deve vir do service.
+
+### 3.2 Estrutura de pastas (atual)
+
+Separação em três pacotes raiz: **backend/** (Python/Flask), **frontend/**
+(Jinja + CSS) e **database/** (SQLite e scripts de dados). O Flask em
+`backend/__init__.py` aponta `template_folder`/`static_folder` para
+`frontend/` e a config aponta `DATABASE_PATH` para `database/`.
+
+```
+Projeto AtoriArt/
+├── backend/                         # Tudo que é Python
+│   ├── __init__.py                  create_app() + paths para frontend/
+│   ├── config.py                    BaseConfig / Dev / Prod (lê .env)
+│   ├── extensions.py                placeholder p/ futuras extensões
+│   ├── security.py                  login_required, autenticação, CSRF
+│   ├── blueprints/                  controllers HTTP (rotas)
+│   │   ├── auth/routes.py           /auth/login, /auth/logout
+│   │   ├── catalogo/routes.py       /catalogo/
+│   │   └── dashboard/routes.py      /painel
+│   ├── services/                    regras de negócio + ViewModels
+│   │   ├── catalogo_service.py
+│   │   └── dashboard_service.py
+│   ├── repositories/                acesso ao banco (lê via database.db)
+│   │   └── peca_repository.py
+│   └── models/                      entidades de domínio (dataclasses)
+│       └── peca.py
+│
+├── frontend/                        # Tudo que é apresentação
+│   ├── templates/
+│   │   ├── base.html
+│   │   ├── _sidebar.html
+│   │   ├── auth/login.html
+│   │   ├── catalogo/index.html
+│   │   └── dashboard/index.html
+│   └── static/css/
+│       ├── base.css
+│       ├── login.css
+│       ├── sidebar.css
+│       ├── dashboard.css
+│       └── catalogo.css
+│
+├── database/                        # Tudo que é banco
+│   ├── __init__.py                  marca como pacote Python
+│   ├── db.py                        get_db() / close_db() / init_app()
+│   ├── schema.sql                   CREATE TABLE das tabelas atuais
+│   ├── init_db.py                   cria/recria o .sqlite3 + seed
+│   └── atoriart.sqlite3             (gerado, gitignored)
+│
+├── .env / .env.example / .gitignore
+├── requirements.txt
+├── run.py                           from backend import create_app
+├── PROJECT_CONTEXT.md
+└── README.md
+```
+
+Cada novo módulo (materia_prima, producao, vendas, relatorios,
+configuracoes) replica o padrão entre os três pacotes:
+
+```
+backend/blueprints/<modulo>/__init__.py
+backend/blueprints/<modulo>/routes.py
+backend/services/<modulo>_service.py
+backend/repositories/<modulo>_repository.py
+backend/models/<modulo>.py
+frontend/templates/<modulo>/...
+frontend/static/css/<modulo>.css
+database/schema.sql                    # acrescentar tabelas
+database/init_db.py                    # acrescentar seed se útil
+```
+
+### 3.3 Application factory
+- `create_app(config_class=None)` em `backend/__init__.py`.
+- Calcula `FRONTEND_DIR` e passa `template_folder`/`static_folder`
+  absolutos ao Flask — preserva a separação backend/frontend no disco.
+- Chama `database.db.init_app(app)` para registrar o fechamento da
+  conexão SQLite ao fim do request.
+- Carrega `.env` em `config.py` (importação topo-de-módulo).
+- Falha rápido se `SECRET_KEY` ausente.
+- Garante que `database/` exista.
+- Registra blueprints, context processors e headers de segurança.
+
+### 3.4 Context globals (disponíveis em todo template)
+- `current_user` — username do admin logado (ou `None`).
+- `is_authenticated` — bool.
+- `csrf_token()` — função que retorna o token CSRF da sessão.
+
+---
+
+## 4. Segurança
+
+### 4.1 Variáveis de ambiente obrigatórias (`.env`)
+- `SECRET_KEY` — assina cookies de sessão. **NÃO é a senha do admin.**
+- `ADMIN_USERNAME` — usuário do admin (default: `admin`).
+- `ADMIN_PASSWORD_HASH` — hash da senha via `werkzeug.security`.
+- `SESSION_LIFETIME_MINUTES` — duração da sessão (default 60).
+- `SESSION_COOKIE_SECURE` — `1` em produção (HTTPS), `0` em dev local.
+- `FLASK_ENV` — `development` | `production`.
+
+### 4.2 Como gerar
+```bash
+# SECRET_KEY
+python -c "import secrets; print(secrets.token_hex(32))"
+
+# ADMIN_PASSWORD_HASH
+python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('SuaSenhaForte'))"
+```
+
+### 4.3 Garantias atuais
+- Senha armazenada como hash, nunca texto puro.
+- Comparação de usuário em tempo constante (`hmac.compare_digest`).
+- Sessão: `HttpOnly` + `SameSite=Lax` sempre; `Secure=True` em produção.
+- Sessão expira após `PERMANENT_SESSION_LIFETIME`.
+- CSRF token por sessão, validado em todo POST.
+- Open redirect prevenido em `_safe_next` (login).
+- Headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: same-origin`.
+- `@login_required` em toda rota interna.
+- `.env`, `instance/*.sqlite*` no `.gitignore`.
+
+### 4.4 A endereçar em produção
+- Servir atrás de HTTPS obrigatório.
+- Avaliar Flask-WTF para CSRF e validação de formulários mais robusta.
+- Adicionar rate limiting no `/auth/login` (ex.: Flask-Limiter).
+- Logar tentativas de login falhas.
+
+---
+
+## 5. Convenções de código
+
+- **Idioma:** rotas, templates e mensagens em **português**. Código (nomes de
+  função/variável internos) também em português quando o termo é do domínio
+  (`pecas_em_estoque`, `faturamento_30d`) — manter consistência.
+- **Imports:** absolutos (`from backend.security import ...`,
+  `from database.db import ...`), nunca relativos.
+- **Type hints:** usar `from __future__ import annotations` no topo dos
+  módulos Python.
+- **Dataclasses** para ViewModels e modelos.
+- **CSS:** um arquivo por contexto (`base.css` global, depois um por tela);
+  classes BEM-ish (`.sidebar__link.is-active`).
+- **Templates:** herança via `{% extends "base.html" %}`; partials começam
+  com `_` (`_sidebar.html`).
+- **Sem JS** por padrão. Se precisar, justificar e adicionar arquivo isolado.
+
+---
+
+## 6. Estado atual
+
+### Etapa 1 ✅ — Fundação
+- Estrutura `backend/` + `frontend/` + `database/` + application factory.
+- Login admin (1 usuário, hash de senha, CSRF, sessão segura).
+- Dashboard com sidebar e cards mockados.
+
+### Etapa 2 ✅ — Infra de banco
+- `database/db.py` com `get_db()`/`close_db()`/`init_app()` usando
+  `sqlite3` + Flask `g`.
+- `database/schema.sql` com as tabelas atuais: `material`, `peca`,
+  `peca_material`, `producao`, `venda`.
+- `database/init_db.py`: cria/recria o banco e popula dados de exemplo
+  com datas relativas a `date.today()`.
+
+### Etapa 3 ✅ — Catálogo (listagem)
+- Página `/catalogo/` com cards, lista ordenada de peças e bloco
+  `<details>` de materiais por peça.
+
+### Etapa 4 ✅ — Matéria-prima (listagem + estoque)
+- Adicionado `quantidade_estoque` e `estoque_minimo` em `material`.
+- Página `/materiais/` com 4 cards (cadastrados, saudável, alerta,
+  valor investido) e alerta amarelo no topo quando há estoque baixo.
+- Badge "Estoque baixo" + borda lateral amarela nos materiais em alerta.
+
+### Etapa 5 ✅ — Produção (listagem)
+- Tabela `producao` (peça, quantidade, data, observação).
+- Página `/producao/` com 4 cards (produções 30d, peças produzidas,
+  peça mais produzida, custo total) e lista ordenada por data.
+
+### Etapa 6 ✅ — Vendas (listagem)
+- Tabela `venda` com `forma_pagamento`.
+- Página `/vendas/` com 4 cards (vendas 30d, faturamento, **lucro
+  bruto**, ticket médio) e lista com badge da forma de pagamento.
+
+### Etapa 7 ✅ — Relatórios
+- Página `/relatorios/` consolida dados de vendas em 4 KPIs, top 5
+  peças mais lucrativas, distribuição por forma de pagamento (com
+  `<meter>` HTML5) e tabela detalhada por peça.
+- **Sem repositório próprio** — consome `venda_repository`.
+
+### Etapa 8 ✅ — Configurações
+- Página `/configuracoes/` com 3 blocos: conta, aplicação, banco.
+- `configuracoes_service` importa `current_app` (exceção arquitetural
+  documentada — única).
+- Constante `__version__ = "1.0.0"` em `backend/__init__.py`.
+
+### Etapa 10 ✅ — Reorganização do fluxo Catálogo ↔ Produção
+- **Catálogo virou vitrine:** mostra apenas peças com
+  `quantidade_estoque > 0`. Sem botões de cadastro/edição/apagar.
+  KPIs ajustados: modelos disponíveis, peças em estoque, custo investido.
+- **Produção virou estoque + log:** topo lista o estoque atual
+  (peças com qtd > 0) com cards de modelos/peças/custo investido e
+  ações de editar/apagar peça; embaixo, histórico de produções dos
+  últimos 30 dias.
+- **Cadastro de peça migrou** de `/catalogo/nova` para
+  `/producao/pecas/nova` (peça nasce na produção).
+- Criado `peca_service.py` com `validar_form/criar/atualizar/apagar`.
+- `catalogo_service` ficou só com `dados_catalogo()`.
+- `peca_repository.list_pecas(apenas_em_estoque=False)` ganhou flag.
+
+### Etapa 9 ✅ — CRUD nos 4 módulos
+- **Matéria-prima:** criar, editar, apagar (bloqueia se em uso).
+- **Catálogo:** criar/editar peça com seleção de materiais via
+  inputs por material (apaga + reinsere `peca_material` em
+  transação); bloqueia apagar peça com vendas históricas.
+- **Produção:** criar/apagar; **toda criação SOMA `quantidade` em
+  `peca.quantidade_estoque` na mesma transação**; apagar SUBTRAI e
+  bloqueia se ficaria negativo (peças já vendidas).
+- **Vendas:** criar/apagar; **toda criação SUBTRAI `quantidade` de
+  `peca.quantidade_estoque`** (bloqueada se sem estoque); apagar
+  devolve. Forma de pagamento validada contra lista fixa.
+- Padrão único de validação: `validar_form(form)` → `(erros, valores)`
+  em todos os services.
+- Forms compartilham [frontend/static/css/forms.css](frontend/static/css/forms.css).
+
+**Não entregue (intencionalmente):**
+- Trocar senha pela interface (exige mover credencial p/ o DB).
+- Resetar banco pela interface (atualmente: `python database/init_db.py`).
+- Despesas (próximo módulo do domínio).
+- Filtro de período nas listagens / relatório (atualmente fixo em 30d).
+
+---
+
+## 7. Roadmap por etapas
+
+| Etapa | Tema                          | Status                                              |
+|-------|-------------------------------|-----------------------------------------------------|
+| 1     | Fundação                      | App factory, login, dashboard mockado ✅             |
+| 2     | Banco e infraestrutura        | `db.py`, `schema.sql`, `init_db.py` ✅               |
+| 3     | Catálogo (listagem)           | Página `/catalogo/` ✅                               |
+| 4     | Matéria-prima (listagem)      | Página `/materiais/` com alerta de estoque ✅        |
+| 5     | Produção (listagem)           | Página `/producao/` ✅                               |
+| 6     | Vendas (listagem)             | Página `/vendas/` com lucro bruto ✅                 |
+| 7     | Relatórios                    | Página `/relatorios/` com `<meter>` ✅               |
+| 8     | Configurações                 | Página `/configuracoes/` ✅                          |
+| 9     | CRUD em todos os módulos      | Formulários + validação + efeitos no estoque ✅      |
+| 10    | Catálogo (vitrine) + Produção (estoque) | Cat = só estoque > 0; cadastro de peça em Produção ✅ |
+| 11    | Despesas                      | Tabela `despesa` + página + receita líquida real    |
+| 12    | Filtro de período             | Seletor 7d / 30d / 90d / custom em vendas/relatórios |
+| 13    | Trocar senha pela interface   | Migrar credencial do `.env` p/ tabela `admin`        |
+
+A cada etapa concluída, atualizar a seção **Estado atual** e o **Roadmap**.
+
+---
+
+## 8. Como rodar (resumo)
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+# preencher SECRET_KEY e ADMIN_PASSWORD_HASH no .env
+python run.py
+# abrir http://127.0.0.1:5000
+```
+
+---
+
+## 9. Decisões registradas (ADRs leves)
+
+### ADR-001 — Sem ORM na Etapa 1
+**Decisão:** usar `sqlite3` da stdlib via repositórios.
+**Motivo:** domínio simples, queries didáticas, menos dependências, e a
+camada de repositório isola a possível migração futura para SQLAlchemy.
+
+### ADR-002 — Senha do admin como hash em `.env`
+**Decisão:** armazenar `ADMIN_PASSWORD_HASH` (não a senha em texto puro).
+**Motivo:** se o `.env` vazar, ainda há custo computacional para
+recuperar a senha. Comparação via `werkzeug.security.check_password_hash`.
+
+### ADR-003 — CSRF manual antes de Flask-WTF
+**Decisão:** implementar token CSRF próprio em `security.py` (sessão).
+**Motivo:** zero dependências adicionais nesta fase e padrão fica
+estabelecido para os próximos forms. Flask-WTF pode entrar depois quando
+houver validação de campos mais complexa.
+
+### ADR-005 — Separação em backend/, frontend/, database/
+**Decisão:** três pacotes raiz em vez de um único `app/`.
+**Motivo:** torna óbvio onde mexer. Mudou regra/SQL? `backend/`. Mudou
+visual? `frontend/`. Mudou schema ou seed? `database/`. Reduz fricção
+ao crescer (matéria-prima, produção, vendas, etc.) — cada módulo replica
+o mesmo padrão de divisão. O Flask aponta `template_folder` e
+`static_folder` explicitamente para `frontend/`, e `DATABASE_PATH`
+aponta para `database/atoriart.sqlite3`.
+
+### ADR-004 — Sidebar com links desabilitados
+**Decisão:** módulos futuros apareciam na sidebar com classe `is-disabled`
+e `pointer-events:none`.
+**Motivo:** o usuário via o mapa do sistema desde o dia 1, sem 404s.
+**Status:** *substituída* — todos os links estão funcionais agora.
+
+### ADR-006 — Padrão único de validação de formulário
+**Decisão:** todo service expõe `validar_form(form_data, ...)` que devolve
+`(erros: dict, valores: dict)`. `erros` vazio = válido. Templates re-renderizam
+o form passando `valores` (string ou int conforme o caso) e `erros`,
+exibindo a mensagem inline ao lado do campo.
+**Motivo:** padrão único, sem dependência de Flask-WTF; o estudante lê o
+código de validação top-to-bottom sem indireções. Helpers `_numero()`,
+`_inteiro()`, `_data_iso()` cuidam das conversões e aceitam vírgula
+decimal brasileira.
+
+### ADR-007 — Efeitos colaterais no estoque (produção e venda)
+**Decisão:** criar/apagar produções e vendas mexe automaticamente em
+`peca.quantidade_estoque` na **mesma transação SQLite** do INSERT/DELETE.
+- Criar produção: SOMA `quantidade` ao estoque da peça.
+- Criar venda: SUBTRAI `quantidade` (bloqueada se sem estoque suficiente).
+- Apagar produção: SUBTRAI (bloqueada se ficaria negativo).
+- Apagar venda: SOMA de volta.
+
+**Motivo:** estoque sempre consistente sem precisar de "rotina de
+recálculo". Como ambos os SQLs (INSERT/DELETE da movimentação +
+UPDATE do estoque) rodam dentro do mesmo `commit()`, ou tudo grava
+ou nada grava — atomicidade nativa do SQLite.
+
+**Trade-off conhecido:** produção NÃO consome `material.quantidade_estoque`
+ainda (só mexe na peça). A reposição/baixa de materiais é manual.
+Pode entrar como Etapa futura.
+
+### ADR-008 — Catálogo vira vitrine; peça nasce na Produção
+**Decisão:** o Catálogo (`/catalogo/`) é apenas leitura e filtra por
+`peca.quantidade_estoque > 0`. O cadastro/edição/remoção da peça vive em
+Produção (`/producao/pecas/...`) e é orquestrado por `peca_service`.
+**Motivo:** o catálogo é a vitrine que a cliente final consulta para
+saber o que pode comprar — peças sem estoque não devem aparecer lá.
+Produção, por sua vez, é o controle de estoque: lá a peça nasce, recebe
+quantidade via lançamentos e, quando atinge estoque > 0, surge
+automaticamente no catálogo. Sem flag `publicado` extra: o estoque já é
+a regra implícita.
+**Implicação arquitetural:** três serviços cooperam — `peca_service`
+(CRUD da entidade peça), `catalogo_service` (apenas `dados_catalogo()`),
+`producao_service` (estoque atual + log de produções). O blueprint
+`producao` hospeda as rotas de peça (`/producao/pecas/nova` etc.).
+
+---
+
+## 10. Glossário curto
+- **Peça:** item produzido (ex.: brinco, colar).
+- **Matéria-prima / Material:** insumo usado na produção.
+- **Produção:** registro de fabricação de N peças em uma data.
+- **Venda:** registro de venda com valor.
+- **Despesa:** custo fixo ou variável que reduz a receita líquida.
+- **Faturamento:** soma bruta de vendas no período.
+- **Receita líquida:** faturamento − despesas no período.

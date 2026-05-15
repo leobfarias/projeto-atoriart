@@ -1,0 +1,188 @@
+/* ============================================================
+   AtoriArt — forms.css
+   Estilos compartilhados de todos os formulários do sistema.
+   ============================================================ */
+
+/* ---------- Container do formulário ---------- */
+.form-pagina {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  max-width: 720px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- Campo (label + input + erro) ---------- */
+.campo {
+  margin-bottom: 16px;
+}
+
+.campo__label {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--color-text);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.campo__label-extra {
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.campo__input,
+.campo__select,
+.campo__textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  font-size: 0.95rem;
+  color: var(--color-text);
+  font-family: inherit;
+}
+
+.campo__textarea {
+  resize: vertical;
+  min-height: 70px;
+}
+
+.campo__input:focus,
+.campo__select:focus,
+.campo__textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(168, 85, 43, 0.12);
+}
+
+.campo__ajuda {
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  margin-top: 4px;
+}
+
+.campo__erro {
+  color: var(--color-danger);
+  font-size: 0.85rem;
+  margin-top: 4px;
+  display: block;
+}
+
+.campo--erro .campo__input,
+.campo--erro .campo__select,
+.campo--erro .campo__textarea {
+  border-color: var(--color-danger);
+  background: #fff;
+}
+
+/* ---------- Linha com 2 campos lado a lado ---------- */
+.campo-linha {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 560px) {
+  .campo-linha { grid-template-columns: 1fr; }
+}
+
+/* ---------- Seção dentro do form (ex.: "Materiais") ---------- */
+.form-secao {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-border);
+}
+
+.form-secao__titulo {
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+
+.form-secao__ajuda {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  margin-bottom: 12px;
+}
+
+/* ---------- Botões do form (Salvar / Cancelar) ---------- */
+.form-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+/* ---------- Lista de materiais (no form de peça) ---------- */
+.materiais-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.materiais-form__item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--color-surface-2);
+  border-radius: 6px;
+}
+
+.materiais-form__nome {
+  color: var(--color-text);
+  font-size: 0.92rem;
+}
+
+.materiais-form__nome small {
+  color: var(--color-muted);
+  margin-left: 4px;
+}
+
+.materiais-form__qtd-wrap {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.materiais-form__qtd-input {
+  width: 90px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: right;
+  background: #fff;
+}
+
+.materiais-form__qtd-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.materiais-form__unidade {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  min-width: 24px;
+}
+
+.materiais-form__erro {
+  grid-column: 1 / -1;
+}
+
+/* ---------- Estado vazio (quando faltam dependências) ---------- */
+.empty-state {
+  padding: 24px;
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-muted);
+  background: var(--color-surface);
+}

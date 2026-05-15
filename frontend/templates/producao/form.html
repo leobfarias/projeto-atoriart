@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Nova produção — AtoriArt{% endblock %}
+{% block body_class %}has-sidebar{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}" />
+{% endblock %}
+
+{% block layout %}
+{% include "_sidebar.html" %}
+
+<main class="content">
+  <header class="content__header">
+    <div>
+      <h1 class="content__title">Nova produção</h1>
+      <p class="content__subtitle">
+        Ao salvar, a quantidade é somada automaticamente ao estoque da peça.
+      </p>
+    </div>
+  </header>
+
+  {% if not pecas %}
+    <p class="empty-state">
+      Nenhuma peça cadastrada. <a href="{{ url_for('producao.peca_nova') }}">Cadastre uma peça</a> primeiro.
+    </p>
+  {% else %}
+  <form method="POST" action="{{ url_for('producao.nova') }}" class="form-pagina">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+    <div class="campo {% if erros.peca_id %}campo--erro{% endif %}">
+      <label class="campo__label" for="peca_id">Peça produzida</label>
+      <select class="campo__select" name="peca_id" id="peca_id" required>
+        <option value="">— escolha uma peça —</option>
+        {% for p in pecas %}
+          <option value="{{ p.id }}"
+                  {% if valores.peca_id|string == p.id|string %}selected{% endif %}>
+            {{ p.nome }}
+          </option>
+        {% endfor %}
+      </select>
+      {% if erros.peca_id %}<span class="campo__erro">{{ erros.peca_id }}</span>{% endif %}
+    </div>
+
+    <div class="campo-linha">
+      <div class="campo {% if erros.quantidade %}campo--erro{% endif %}">
+        <label class="campo__label" for="quantidade">Quantidade produzida</label>
+        <input class="campo__input" type="number" step="1" min="1"
+               name="quantidade" id="quantidade"
+               value="{{ valores.quantidade|default('') }}" required />
+        {% if erros.quantidade %}<span class="campo__erro">{{ erros.quantidade }}</span>{% endif %}
+      </div>
+
+      <div class="campo {% if erros.data %}campo--erro{% endif %}">
+        <label class="campo__label" for="data">Data</label>
+        <input class="campo__input" type="date" name="data" id="data"
+               value="{{ valores.data|default(hoje) }}" max="{{ hoje }}" required />
+        {% if erros.data %}<span class="campo__erro">{{ erros.data }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="campo">
+      <label class="campo__label" for="observacao">
+        Observação <span class="campo__label-extra">(opcional)</span>
+      </label>
+      <textarea class="campo__textarea" name="observacao" id="observacao"
+                maxlength="200">{{ valores.observacao|default('') }}</textarea>
+      <p class="campo__ajuda">Ex.: "amostra para feira", "pedido especial".</p>
+    </div>
+
+    <div class="form-acoes">
+      <a class="btn btn--ghost" href="{{ url_for('producao.index') }}">Cancelar</a>
+      <button class="btn btn--primary" type="submit">Registrar produção</button>
+    </div>
+  </form>
+  {% endif %}
+</main>
+{% endblock %}

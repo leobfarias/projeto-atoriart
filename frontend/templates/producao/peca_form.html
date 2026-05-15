@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}
+  {% if modo == 'novo' %}Nova peça{% else %}Editar peça{% endif %} — AtoriArt
+{% endblock %}
+{% block body_class %}has-sidebar{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}" />
+{% endblock %}
+
+{% block layout %}
+{% include "_sidebar.html" %}
+
+<main class="content">
+  <header class="content__header">
+    <div>
+      <h1 class="content__title">
+        {% if modo == 'novo' %}Nova peça{% else %}Editar peça{% endif %}
+      </h1>
+      <p class="content__subtitle">
+        {% if modo == 'novo' %}
+          Cadastre uma peça e os materiais que ela usa.
+          Ela aparece no catálogo quando o estoque ficar maior que zero.
+        {% else %}
+          Atualize as informações da peça e seus materiais.
+        {% endif %}
+      </p>
+    </div>
+  </header>
+
+  <form method="POST" class="form-pagina"
+        action="{% if modo == 'novo' %}{{ url_for('producao.peca_nova') }}{% else %}{{ url_for('producao.peca_editar', peca_id=peca_id) }}{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+    <div class="campo {% if erros.nome %}campo--erro{% endif %}">
+      <label class="campo__label" for="nome">Nome</label>
+      <input class="campo__input" type="text" name="nome" id="nome"
+             value="{{ valores.nome|default('') }}" required maxlength="80" />
+      {% if erros.nome %}<span class="campo__erro">{{ erros.nome }}</span>{% endif %}
+    </div>
+
+    <div class="campo-linha">
+      <div class="campo {% if erros.custo_producao %}campo--erro{% endif %}">
+        <label class="campo__label" for="custo_producao">
+          Custo de produção <span class="campo__label-extra">(R$)</span>
+        </label>
+        <input class="campo__input" type="number" step="0.01" min="0"
+               name="custo_producao" id="custo_producao"
+               value="{{ valores.custo_producao|default('') }}" required />
+        {% if erros.custo_producao %}<span class="campo__erro">{{ erros.custo_producao }}</span>{% endif %}
+      </div>
+
+      <div class="campo {% if erros.quantidade_estoque %}campo--erro{% endif %}">
+        <label class="campo__label" for="quantidade_estoque">
+          Estoque inicial
+        </label>
+        <input class="campo__input" type="number" step="1" min="0"
+               name="quantidade_estoque" id="quantidade_estoque"
+               value="{{ valores.quantidade_estoque|default('') }}" required />
+        {% if erros.quantidade_estoque %}<span class="campo__erro">{{ erros.quantidade_estoque }}</span>{% endif %}
+      </div>
+    </div>
+
+    {# ---------- Seção de materiais ---------- #}
+    <div class="form-secao">
+      <h2 class="form-secao__titulo">Materiais usados nesta peça</h2>
+      <p class="form-secao__ajuda">
+        Informe a quantidade de cada material que esta peça consome.
+        Deixe em branco os que não usa.
+      </p>
+
+      {% if not materiais_disponiveis %}
+        <p class="form-secao__ajuda">
+          Nenhum material cadastrado ainda.
+          <a href="{{ url_for('materia_prima.novo') }}">Cadastre um material</a> primeiro.
+        </p>
+      {% else %}
+        <div class="materiais-form">
+          {% for m in materiais_disponiveis %}
+            <div class="materiais-form__item">
+              <span class="materiais-form__nome">
+                {{ m.nome }}
+                <small>(R$ {{ '%.2f'|format(m.valor_unitario) }} / {{ m.unidade }})</small>
+              </span>
+              <div class="materiais-form__qtd-wrap">
+                <input class="materiais-form__qtd-input"
+                       type="number" step="any" min="0"
+                       name="material_{{ m.id }}"
+                       value="{{ valores.materiais.get(m.id, '') }}" />
+                <span class="materiais-form__unidade">{{ m.unidade }}</span>
+              </div>
+              {% if erros['material_' ~ m.id] %}
+                <span class="campo__erro materiais-form__erro">
+                  {{ erros['material_' ~ m.id] }}
+                </span>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="form-acoes">
+      <a class="btn btn--ghost" href="{{ url_for('producao.index') }}">Cancelar</a>
+      <button class="btn btn--primary" type="submit">
+        {% if modo == 'novo' %}Cadastrar peça{% else %}Salvar{% endif %}
+      </button>
+    </div>
+  </form>
+</main>
+{% endblock %}

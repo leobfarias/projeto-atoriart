@@ -1,0 +1,103 @@
+/* ============================================================
+   AtoriArt — materia_prima.css
+   Página de Matéria-prima. Reaproveita .content, .cards, .card,
+   .alert e .alert--warning já definidos em base.css/dashboard.css.
+   ============================================================ */
+
+.content__subtitle {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+/* ---------- Lista de materiais ---------- */
+.materiais { margin-top: 8px; }
+.materiais__titulo { font-size: 1.1rem; margin-bottom: 12px; }
+
+.materiais__lista {
+  list-style: decimal;
+  padding-left: 24px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.materiais__vazio {
+  padding: 24px;
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-muted);
+  background: var(--color-surface);
+}
+.materiais__vazio code {
+  background: var(--color-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.92em;
+}
+
+/* ---------- Card do material ---------- */
+.material {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+}
+.material--alerta {
+  border-left: 3px solid var(--color-warning-text);
+}
+
+.material__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.material__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 220px;
+}
+.material__nome { color: var(--color-text); }
+.material__valores {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.material__acoes {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.material__form-apagar { display: inline; margin: 0; }
+.material__btn-apagar { color: var(--color-danger); }
+.material__btn-apagar:hover {
+  background: rgba(177, 58, 58, 0.06);
+  border-color: rgba(177, 58, 58, 0.3);
+}
+
+/* ---------- Badge "Estoque baixo" ---------- */
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.badge--alerta {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border-color: var(--color-warning-border);
+}

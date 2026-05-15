@@ -1,0 +1,123 @@
+/* ============================================================
+   AtoriArt — producao.css
+   Página de Produção. Reaproveita .content, .cards, .card de
+   base.css/dashboard.css.
+   ============================================================ */
+
+.content__subtitle {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+/* Header com mais de um botão à direita */
+.content__header-acoes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Card cujo "valor" é texto (nome da peça top) precisa de fonte menor */
+.card__value--text {
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+/* ---------- Lista de produções ---------- */
+.producoes { margin-top: 8px; }
+.producoes__titulo {
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+}
+.producoes__subtitulo {
+  font-weight: normal;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+/* Separador visual entre estoque atual e histórico */
+.producoes--historico {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border);
+}
+
+.producoes__lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.producoes__vazio {
+  padding: 24px;
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-muted);
+  background: var(--color-surface);
+}
+
+/* ---------- Card da produção ---------- */
+.producao {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+  border-left: 3px solid var(--color-primary);
+}
+
+.producao__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.producao__info {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex: 1;
+  min-width: 220px;
+  flex-wrap: wrap;
+}
+
+.producao__data {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  background: var(--color-surface-2);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.producao__peca {
+  color: var(--color-text);
+}
+
+.producao__valores {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.producao__acoes { display: flex; gap: 6px; }
+.producao__form-apagar { display: inline; margin: 0; }
+.producao__btn-apagar { color: var(--color-danger); }
+.producao__btn-apagar:hover {
+  background: rgba(177, 58, 58, 0.06);
+  border-color: rgba(177, 58, 58, 0.3);
+}
+
+.producao__obs {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--color-border);
+  color: var(--color-muted);
+  font-size: 0.88rem;
+  font-style: italic;
+}

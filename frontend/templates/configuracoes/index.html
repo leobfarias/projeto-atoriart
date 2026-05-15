@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Configurações — AtoriArt{% endblock %}
+{% block body_class %}has-sidebar{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/configuracoes.css') }}" />
+{% endblock %}
+
+{% block layout %}
+{% include "_sidebar.html" %}
+
+<main class="content">
+  <header class="content__header">
+    <div>
+      <h1 class="content__title">Configurações</h1>
+      <p class="content__subtitle">
+        Conta administrativa, informações da aplicação e do banco.
+      </p>
+    </div>
+  </header>
+
+  {# ---------- Sua conta ---------- #}
+  <section class="config-card">
+    <h2 class="config-card__titulo">Sua conta</h2>
+    <dl class="config-lista">
+      <div class="config-item">
+        <dt>Usuário</dt>
+        <dd>{{ usuario }}</dd>
+      </div>
+      <div class="config-item">
+        <dt>Tipo</dt>
+        <dd>Administrador (único)</dd>
+      </div>
+    </dl>
+    <form method="POST"
+          action="{{ url_for('configuracoes.trocar_senha') }}"
+          class="config-card__acao">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <button type="submit" class="btn btn--ghost">Trocar senha</button>
+    </form>
+  </section>
+
+  {# ---------- Aplicação ---------- #}
+  <section class="config-card">
+    <h2 class="config-card__titulo">Aplicação</h2>
+    <dl class="config-lista">
+      <div class="config-item">
+        <dt>Versão</dt>
+        <dd>{{ versao }}</dd>
+      </div>
+      <div class="config-item">
+        <dt>Ambiente</dt>
+        <dd>
+          {{ ambiente }}
+          {% if debug %}
+            <span class="badge-cfg badge-cfg--warning">Debug ligado</span>
+          {% endif %}
+        </dd>
+      </div>
+      <div class="config-item">
+        <dt>Tempo de sessão</dt>
+        <dd>{{ session_minutos }} minutos</dd>
+      </div>
+      <div class="config-item">
+        <dt>Cookie seguro (HTTPS)</dt>
+        <dd>
+          {% if cookie_secure %}
+            <span class="badge-cfg badge-cfg--ok">Ativo</span>
+          {% else %}
+            <span class="badge-cfg badge-cfg--warning">Desligado</span>
+          {% endif %}
+        </dd>
+      </div>
+    </dl>
+  </section>
+
+  {# ---------- Banco de dados ---------- #}
+  <section class="config-card">
+    <h2 class="config-card__titulo">Banco de dados</h2>
+    {% if db_existe %}
+      <dl class="config-lista">
+        <div class="config-item">
+          <dt>Local</dt>
+          <dd><code>{{ db_local }}</code></dd>
+        </div>
+        <div class="config-item">
+          <dt>Tamanho</dt>
+          <dd>{{ db_tamanho_kb }} KB</dd>
+        </div>
+        <div class="config-item">
+          <dt>Modificado em</dt>
+          <dd>{{ db_modificado }}</dd>
+        </div>
+      </dl>
+      <p class="config-card__nota">
+        Pra recriar o banco do zero, rode no terminal:
+        <code>python database/init_db.py</code>
+      </p>
+      <form method="POST"
+            action="{{ url_for('configuracoes.resetar_banco') }}"
+            class="config-card__acao">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <button type="submit" class="btn btn--ghost config-card__btn-danger">
+          Resetar banco
+        </button>
+      </form>
+    {% else %}
+      <p class="config-card__nota">
+        O arquivo do banco ainda não existe.
+        Rode <code>python database/init_db.py</code> no terminal.
+      </p>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

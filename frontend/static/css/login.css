@@ -1,0 +1,67 @@
+/* ============================================================
+   AtoriArt — login.css
+   Tela de login. Usa variáveis de base.css.
+   ============================================================ */
+
+.page-login {
+  background: linear-gradient(135deg, #f6f3ef 0%, #ece4d6 100%);
+  min-height: 100vh;
+}
+
+.login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login__card {
+  background: var(--color-surface);
+  width: 100%;
+  max-width: 380px;
+  padding: 36px 32px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+}
+
+.login__brand { text-align: center; margin-bottom: 24px; }
+.login__logo {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  letter-spacing: 0.5px;
+}
+.login__tagline {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+.login__title {
+  font-size: 1.05rem;
+  text-align: center;
+  margin-bottom: 20px;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.login__form { display: flex; flex-direction: column; gap: 14px; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field__label { font-size: 0.85rem; color: var(--color-muted); }
+.field__input {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+.field__input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(168, 85, 43, 0.12);
+}

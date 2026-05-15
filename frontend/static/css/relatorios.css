@@ -1,0 +1,172 @@
+/* ============================================================
+   AtoriArt — relatorios.css
+   Página de Relatórios. Reaproveita .content, .cards, .card.
+   ============================================================ */
+
+.content__subtitle {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+/* ---------- Seções do relatório ---------- */
+.relatorio-secao {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+}
+
+.relatorio-secao__titulo {
+  font-size: 1.1rem;
+  margin-bottom: 14px;
+  color: var(--color-text);
+}
+
+.relatorio-secao__vazio {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+/* ---------- Ranking (top peças) ---------- */
+.ranking {
+  list-style: decimal;
+  padding-left: 22px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ranking__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  background: var(--color-surface-2);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.ranking__nome {
+  font-weight: 600;
+  color: var(--color-text);
+  flex: 1;
+  min-width: 180px;
+}
+
+.ranking__info {
+  color: var(--color-muted);
+  font-size: 0.88rem;
+}
+
+.ranking__lucro {
+  font-weight: 600;
+  color: var(--color-success);
+  white-space: nowrap;
+}
+.ranking__lucro small {
+  font-weight: 500;
+  color: var(--color-muted);
+  margin-left: 4px;
+}
+
+/* ---------- Formas de pagamento (com <meter>) ---------- */
+.pagamentos {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pagamento__cabecalho {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.pagamento__nome {
+  font-weight: 500;
+  color: var(--color-text);
+}
+.pagamento__valor {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+.pagamento__valor small {
+  color: var(--color-muted);
+  margin-left: 4px;
+}
+
+/* Estilização da barra <meter> (cross-browser via vendor prefixes) */
+.pagamento__barra {
+  width: 100%;
+  height: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  overflow: hidden;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.pagamento__barra::-webkit-meter-bar {
+  background: var(--color-bg);
+  border: none;
+  border-radius: 999px;
+}
+.pagamento__barra::-webkit-meter-optimum-value {
+  background: var(--color-primary);
+  border-radius: 999px;
+}
+.pagamento__barra::-moz-meter-bar {
+  background: var(--color-primary);
+}
+
+/* ---------- Tabela detalhada ---------- */
+.tabela-wrap {
+  overflow-x: auto;       /* permite rolar lateralmente em telas estreitas */
+}
+
+.tabela-pecas {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  min-width: 600px;
+}
+
+.tabela-pecas thead th {
+  text-align: left;
+  padding: 10px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.tabela-pecas tbody td {
+  padding: 10px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.tabela-pecas tbody tr:last-child td { border-bottom: none; }
+.tabela-pecas tbody tr:hover { background: var(--color-surface-2); }
+
+.tabela-pecas .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tabela-pecas tbody td.num:nth-last-child(2) {
+  /* coluna Lucro */
+  color: var(--color-success);
+  font-weight: 500;
+}

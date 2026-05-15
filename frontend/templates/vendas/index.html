@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Vendas — AtoriArt{% endblock %}
+{% block body_class %}has-sidebar{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/vendas.css') }}" />
+{% endblock %}
+
+{% block layout %}
+{% include "_sidebar.html" %}
+
+<main class="content">
+  <header class="content__header">
+    <div>
+      <h1 class="content__title">Vendas</h1>
+      <p class="content__subtitle">
+        Histórico de vendas dos últimos {{ janela_dias }} dias.
+      </p>
+    </div>
+    <a class="btn btn--primary" href="{{ url_for('vendas.nova') }}">
+      Registrar venda
+    </a>
+  </header>
+
+  <section class="cards" aria-label="Indicadores de vendas">
+    <article class="card">
+      <p class="card__label">Vendas ({{ janela_dias }} dias)</p>
+      <p class="card__value">{{ total_vendas }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Faturamento</p>
+      <p class="card__value">R$ {{ '%.2f'|format(faturamento) }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Lucro bruto</p>
+      <p class="card__value">R$ {{ '%.2f'|format(lucro_bruto) }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Ticket médio</p>
+      <p class="card__value">R$ {{ '%.2f'|format(ticket_medio) }}</p>
+    </article>
+  </section>
+
+  <section class="vendas">
+    <h2 class="vendas__titulo">Histórico recente</h2>
+
+    {% if not vendas %}
+      <p class="vendas__vazio">
+        Nenhuma venda registrada nos últimos {{ janela_dias }} dias.
+      </p>
+    {% else %}
+      <ol class="vendas__lista">
+        {% for v in vendas %}
+          <li class="venda">
+            <div class="venda__topo">
+              <div class="venda__info">
+                <span class="venda__data">{{ v.data }}</span>
+                <strong class="venda__peca">{{ v.peca_nome }}</strong>
+                <span class="venda__valores">
+                  {{ v.quantidade }} un • R$ {{ '%.2f'|format(v.valor_total) }}
+                </span>
+              </div>
+              <div class="venda__acoes">
+                {% if v.forma_pagamento %}
+                  <span class="badge-pagto">{{ v.forma_pagamento }}</span>
+                {% endif %}
+                <form method="POST"
+                      action="{{ url_for('vendas.apagar', venda_id=v.id) }}"
+                      class="venda__form-apagar">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                  <button type="submit" class="btn btn--ghost venda__btn-apagar">Apagar</button>
+                </form>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

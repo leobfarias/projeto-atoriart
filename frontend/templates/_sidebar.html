@@ -1,0 +1,49 @@
+<aside class="sidebar" aria-label="Menu lateral">
+  <div class="sidebar__brand">
+    <span class="sidebar__logo">AtoriArt</span>
+    <span class="sidebar__tagline">Gestão de Artesanato</span>
+  </div>
+
+  <nav class="sidebar__nav" aria-label="Navegação principal">
+    <p class="sidebar__section-title">Atalhos</p>
+    <ul class="sidebar__list">
+      <li>
+        <a class="sidebar__link {% if request.endpoint == 'dashboard.index' %}is-active{% endif %}"
+           href="{{ url_for('dashboard.index') }}">Painel</a>
+      </li>
+      <li>
+        <a class="sidebar__link {% if request.endpoint and request.endpoint.startswith('catalogo.') %}is-active{% endif %}"
+           href="{{ url_for('catalogo.index') }}">Catálogo</a>
+      </li>
+      <li>
+        <a class="sidebar__link {% if request.endpoint and request.endpoint.startswith('materia_prima.') %}is-active{% endif %}"
+           href="{{ url_for('materia_prima.index') }}">Matéria-prima</a>
+      </li>
+      <li>
+        <a class="sidebar__link {% if request.endpoint and request.endpoint.startswith('producao.') %}is-active{% endif %}"
+           href="{{ url_for('producao.index') }}">Produção</a>
+      </li>
+      <li>
+        <a class="sidebar__link {% if request.endpoint and request.endpoint.startswith('vendas.') %}is-active{% endif %}"
+           href="{{ url_for('vendas.index') }}">Vendas</a>
+      </li>
+    </ul>
+
+    <p class="sidebar__section-title">Análise</p>
+    <ul class="sidebar__list">
+      <li>
+        <a class="sidebar__link {% if request.endpoint and request.endpoint.startswith('relatorios.') %}is-active{% endif %}"
+           href="{{ url_for('relatorios.index') }}">Relatórios</a>
+      </li>
+      <li>
+        <a class="sidebar__link {% if request.endpoint and request.endpoint.startswith('configuracoes.') %}is-active{% endif %}"
+           href="{{ url_for('configuracoes.index') }}">Configurações</a>
+      </li>
+    </ul>
+  </nav>
+
+  <form action="{{ url_for('auth.logout') }}" method="POST" class="sidebar__logout">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    <button type="submit" class="btn btn--ghost btn--block">Sair</button>
+  </form>
+</aside>

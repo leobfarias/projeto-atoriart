@@ -1,0 +1,136 @@
+/* ============================================================
+   AtoriArt — catalogo.css
+   Estilos da página Catálogo. Reaproveita .content, .cards e
+   .card que estão em dashboard.css.
+   ============================================================ */
+
+.content__subtitle {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+/* ---------- Lista de peças ---------- */
+.catalogo { margin-top: 8px; }
+.catalogo__titulo { font-size: 1.1rem; margin-bottom: 12px; }
+
+.catalogo__lista {
+  list-style: decimal;            /* numera as peças */
+  padding-left: 24px;             /* espaço para os números */
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.catalogo__vazio {
+  padding: 24px;
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-muted);
+  background: var(--color-surface);
+}
+.catalogo__vazio code {
+  background: var(--color-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.92em;
+}
+
+/* ---------- Card da peça ---------- */
+.peca {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.peca__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.peca__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 220px;
+}
+.peca__nome { color: var(--color-text); }
+.peca__valores {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.peca__acoes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.peca__form-apagar { display: inline; margin: 0; }
+.peca__btn-apagar { color: var(--color-danger); }
+.peca__btn-apagar:hover {
+  background: rgba(177, 58, 58, 0.06);
+  border-color: rgba(177, 58, 58, 0.3);
+}
+
+/* ---------- Bloco de materiais (tag <details>) ---------- */
+.peca__materiais {
+  margin-top: 12px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}
+
+.peca__materiais-toggle {
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--color-primary);
+  list-style: none;          /* esconde o triângulo padrão do <details> */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+.peca__materiais-toggle::-webkit-details-marker { display: none; }
+.peca__materiais-toggle::before {
+  content: "▸";
+  font-size: 0.85em;
+}
+.peca__materiais[open] .peca__materiais-toggle::before { content: "▾"; }
+
+.peca__materiais-vazio {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  margin-top: 8px;
+}
+
+/* ---------- Tabela de materiais ---------- */
+.materiais-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 0.92rem;
+}
+.materiais-tabela th,
+.materiais-tabela td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+.materiais-tabela th {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.materiais-tabela tr:last-child td { border-bottom: none; }
+.materiais-tabela td:nth-child(2),
+.materiais-tabela td:nth-child(3) { color: var(--color-muted); }

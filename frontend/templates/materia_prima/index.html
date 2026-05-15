@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Matéria-prima — AtoriArt{% endblock %}
+{% block body_class %}has-sidebar{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/materia_prima.css') }}" />
+{% endblock %}
+
+{% block layout %}
+{% include "_sidebar.html" %}
+
+<main class="content">
+  <header class="content__header">
+    <div>
+      <h1 class="content__title">Matéria-prima</h1>
+      <p class="content__subtitle">
+        Insumos do estoque e alertas de reposição.
+      </p>
+    </div>
+    <a class="btn btn--primary" href="{{ url_for('materia_prima.novo') }}">
+      Registrar material
+    </a>
+  </header>
+
+  <section class="cards" aria-label="Indicadores de matéria-prima">
+    <article class="card">
+      <p class="card__label">Materiais cadastrados</p>
+      <p class="card__value">{{ total_cadastrados }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Em estoque saudável</p>
+      <p class="card__value">{{ total_ok }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Em alerta (baixo)</p>
+      <p class="card__value">{{ total_alerta }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Valor investido</p>
+      <p class="card__value">R$ {{ '%.2f'|format(valor_investido) }}</p>
+    </article>
+  </section>
+
+  {% if materiais_alerta %}
+  <section class="alert alert--warning" role="status">
+    <div>
+      <strong>Estoque baixo:</strong>
+      {{ materiais_alerta|length }} material(is) abaixo do mínimo configurado.
+    </div>
+    <a class="btn btn--warning" href="{{ url_for('materia_prima.novo') }}">
+      Repor agora
+    </a>
+  </section>
+  {% endif %}
+
+  <section class="materiais">
+    <h2 class="materiais__titulo">Materiais cadastrados</h2>
+
+    {% if not materiais %}
+      <p class="materiais__vazio">
+        Nenhum material cadastrado.
+        Rode <code>python database/init_db.py</code> para criar o banco com dados de exemplo.
+      </p>
+    {% else %}
+      <ol class="materiais__lista">
+        {% for m in materiais %}
+          <li class="material {% if m.em_alerta %}material--alerta{% endif %}">
+            <div class="material__topo">
+              <div class="material__info">
+                <strong class="material__nome">{{ m.nome }}</strong>
+                <span class="material__valores">
+                  R$ {{ '%.2f'|format(m.valor_unitario) }} / {{ m.unidade }}
+                  • {{ '%g'|format(m.quantidade_estoque) }} {{ m.unidade }} em estoque
+                  • mínimo {{ '%g'|format(m.estoque_minimo) }} {{ m.unidade }}
+                </span>
+              </div>
+              <div class="material__acoes">
+                {% if m.em_alerta %}
+                  <span class="badge badge--alerta">Estoque baixo</span>
+                {% endif %}
+                <a class="btn btn--ghost"
+                   href="{{ url_for('materia_prima.editar', material_id=m.id) }}">Editar</a>
+                <form method="POST"
+                      action="{{ url_for('materia_prima.apagar', material_id=m.id) }}"
+                      class="material__form-apagar">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                  <button type="submit" class="btn btn--ghost material__btn-apagar">Apagar</button>
+                </form>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

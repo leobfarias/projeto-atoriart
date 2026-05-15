@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Catálogo — AtoriArt{% endblock %}
+{% block body_class %}has-sidebar{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/catalogo.css') }}" />
+{% endblock %}
+
+{% block layout %}
+{% include "_sidebar.html" %}
+
+<main class="content">
+  <header class="content__header">
+    <div>
+      <h1 class="content__title">Catálogo</h1>
+      <p class="content__subtitle">
+        Vitrine de peças prontas e disponíveis para venda.
+        Para cadastrar uma peça nova, use a área de
+        <a href="{{ url_for('producao.index') }}">Produção</a>.
+      </p>
+    </div>
+  </header>
+
+  <section class="cards" aria-label="Indicadores do catálogo">
+    <article class="card">
+      <p class="card__label">Modelos disponíveis</p>
+      <p class="card__value">{{ modelos_disponiveis }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Peças em estoque</p>
+      <p class="card__value">{{ pecas_em_estoque }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Custo investido na vitrine</p>
+      <p class="card__value">R$ {{ '%.2f'|format(custo_investido) }}</p>
+    </article>
+  </section>
+
+  <section class="catalogo">
+    <h2 class="catalogo__titulo">Peças disponíveis</h2>
+
+    {% if not pecas %}
+      <p class="catalogo__vazio">
+        Nenhuma peça em estoque no momento.
+        Registre uma produção em
+        <a href="{{ url_for('producao.index') }}">Produção</a>
+        para colocar peças à venda.
+      </p>
+    {% else %}
+      <ol class="catalogo__lista">
+        {% for peca in pecas %}
+          <li class="peca">
+            <div class="peca__topo">
+              <div class="peca__info">
+                <strong class="peca__nome">{{ peca.nome }}</strong>
+                <span class="peca__valores">
+                  R$ {{ '%.2f'|format(peca.custo_producao) }}
+                  • {{ peca.quantidade_estoque }} em estoque
+                </span>
+              </div>
+            </div>
+
+            <details class="peca__materiais">
+              <summary class="peca__materiais-toggle">Materiais</summary>
+
+              {% if peca.materiais %}
+                <table class="materiais-tabela">
+                  <thead>
+                    <tr>
+                      <th>Material</th>
+                      <th>Quantidade utilizada</th>
+                      <th>Valor unitário</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for item in peca.materiais %}
+                      <tr>
+                        <td>{{ item.material.nome }}</td>
+                        <td>{{ '%g'|format(item.quantidade) }} {{ item.material.unidade }}</td>
+                        <td>R$ {{ '%.2f'|format(item.material.valor_unitario) }} / {{ item.material.unidade }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% else %}
+                <p class="peca__materiais-vazio">Nenhum material cadastrado.</p>
+              {% endif %}
+            </details>
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

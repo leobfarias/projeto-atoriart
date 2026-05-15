@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}
+  {% if modo == 'novo' %}Novo material{% else %}Editar material{% endif %} — AtoriArt
+{% endblock %}
+{% block body_class %}has-sidebar{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}" />
+{% endblock %}
+
+{% block layout %}
+{% include "_sidebar.html" %}
+
+<main class="content">
+  <header class="content__header">
+    <div>
+      <h1 class="content__title">
+        {% if modo == 'novo' %}Novo material{% else %}Editar material{% endif %}
+      </h1>
+      <p class="content__subtitle">
+        {% if modo == 'novo' %}
+          Cadastre um insumo de matéria-prima.
+        {% else %}
+          Atualize as informações do material.
+        {% endif %}
+      </p>
+    </div>
+  </header>
+
+  <form method="POST" class="form-pagina"
+        action="{% if modo == 'novo' %}{{ url_for('materia_prima.novo') }}{% else %}{{ url_for('materia_prima.editar', material_id=material_id) }}{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+    <div class="campo {% if erros.nome %}campo--erro{% endif %}">
+      <label class="campo__label" for="nome">Nome</label>
+      <input class="campo__input" type="text" name="nome" id="nome"
+             value="{{ valores.nome|default('') }}" required maxlength="80" />
+      {% if erros.nome %}<span class="campo__erro">{{ erros.nome }}</span>{% endif %}
+    </div>
+
+    <div class="campo-linha">
+      <div class="campo {% if erros.unidade %}campo--erro{% endif %}">
+        <label class="campo__label" for="unidade">
+          Unidade <span class="campo__label-extra">(m, g, un, kg…)</span>
+        </label>
+        <input class="campo__input" type="text" name="unidade" id="unidade"
+               value="{{ valores.unidade|default('') }}" required maxlength="10" />
+        {% if erros.unidade %}<span class="campo__erro">{{ erros.unidade }}</span>{% endif %}
+      </div>
+
+      <div class="campo {% if erros.valor_unitario %}campo--erro{% endif %}">
+        <label class="campo__label" for="valor_unitario">
+          Valor unitário <span class="campo__label-extra">(R$)</span>
+        </label>
+        <input class="campo__input" type="number" step="0.01" min="0"
+               name="valor_unitario" id="valor_unitario"
+               value="{{ valores.valor_unitario|default('') }}" required />
+        {% if erros.valor_unitario %}<span class="campo__erro">{{ erros.valor_unitario }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="campo-linha">
+      <div class="campo {% if erros.quantidade_estoque %}campo--erro{% endif %}">
+        <label class="campo__label" for="quantidade_estoque">
+          Quantidade em estoque
+        </label>
+        <input class="campo__input" type="number" step="any" min="0"
+               name="quantidade_estoque" id="quantidade_estoque"
+               value="{{ valores.quantidade_estoque|default('') }}" required />
+        {% if erros.quantidade_estoque %}<span class="campo__erro">{{ erros.quantidade_estoque }}</span>{% endif %}
+      </div>
+
+      <div class="campo {% if erros.estoque_minimo %}campo--erro{% endif %}">
+        <label class="campo__label" for="estoque_minimo">
+          Estoque mínimo <span class="campo__label-extra">(alerta)</span>
+        </label>
+        <input class="campo__input" type="number" step="any" min="0"
+               name="estoque_minimo" id="estoque_minimo"
+               value="{{ valores.estoque_minimo|default('') }}" required />
+        {% if erros.estoque_minimo %}<span class="campo__erro">{{ erros.estoque_minimo }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="form-acoes">
+      <a class="btn btn--ghost" href="{{ url_for('materia_prima.index') }}">Cancelar</a>
+      <button class="btn btn--primary" type="submit">
+        {% if modo == 'novo' %}Cadastrar{% else %}Salvar{% endif %}
+      </button>
+    </div>
+  </form>
+</main>
+{% endblock %}
