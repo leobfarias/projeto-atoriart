@@ -1,20 +1,11 @@
-"""Camada de serviço do dashboard.
-
-Responsável por montar o ViewModel exibido no painel a partir das regras de
-negócio. Por enquanto retorna dados mockados — quando os módulos de vendas,
-estoque, produção e despesas existirem, esta função consultará os repositórios
-e aplicará as regras de cálculo:
-
-    faturamento_30d  = soma(valor) das vendas dos últimos 30 dias
-    receita_liquida  = faturamento_30d - despesas_30d
-    pecas_em_estoque = soma(quantidade) dos itens em estoque
-    producao_30d     = contagem de produções nos últimos 30 dias
-    estoque_baixo    = materiais com quantidade < mínimo
-"""
+"""Camada de serviço do dashboard."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime, timedelta
+
+from backend.repositories import material_repository, peca_repository
+from backend.repositories import producao_repository, venda_repository
 
 
 @dataclass
@@ -45,12 +36,34 @@ def _saudacao_por_horario(now: datetime | None = None) -> str:
 
 
 def build_dashboard_view_model() -> DashboardViewModel:
-    # TODO(fase futura): substituir mock por consultas reais via repositórios.
+    desde = (date.today() - timedelta(days=30)).isoformat()
+
+    vendas = venda_repository.list_vendas(desde=desde)
+    faturamento_30d = sum(v.valor_total for v in vendas)
+    receita_liquida = sum(v.lucro_bruto for v in vendas)
+
+    pecas = peca_repository.list_pecas()
+    pecas_em_estoque = sum(p.quantidade_estoque for p in pecas)
+
+    producoes = producao_repository.list_producoes(desde=desde)
+    producao_30d = len(producoes)
+
+    materiais = material_repository.list_materiais()
+    estoque_baixo = [
+        LowStockItem(
+            nome=m.nome,
+            quantidade_atual=m.quantidade_estoque,
+            minimo=m.estoque_minimo,
+        )
+        for m in materiais
+        if m.em_alerta
+    ]
+
     return DashboardViewModel(
         saudacao=_saudacao_por_horario(),
-        faturamento_30d=0.0,
-        receita_liquida=0.0,
-        pecas_em_estoque=0,
-        producao_30d=0,
-        estoque_baixo=[],
+        faturamento_30d=faturamento_30d,
+        receita_liquida=receita_liquida,
+        pecas_em_estoque=pecas_em_estoque,
+        producao_30d=producao_30d,
+        estoque_baixo=estoque_baixo,
     )

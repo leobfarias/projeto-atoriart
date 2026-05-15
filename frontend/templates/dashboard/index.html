@@ -16,8 +16,8 @@
       <h1 class="content__title">Painel</h1>
     </div>
     <div class="content__actions">
-      <a class="btn btn--ghost" href="#">Ver relatórios</a>
-      <a class="btn btn--primary" href="#">Registrar venda</a>
+      <a class="btn btn--ghost" href="../relatorios/">Ver relatórios</a>
+      <a class="btn btn--primary" href="../vendas/nova">Registrar venda</a>
     </div>
   </header>
 
@@ -39,7 +39,7 @@
     </article>
 
     <article class="card">
-      <p class="card__label">Receita líquida</p>
+      <p class="card__label">Receita líquida (30 dias)</p>
       <p class="card__value">R$ {{ '%.2f'|format(vm.receita_liquida) }}</p>
       <p class="card__hint">Faturamento menos despesas</p>
     </article>
@@ -47,32 +47,32 @@
     <article class="card">
       <p class="card__label">Peças em estoque</p>
       <p class="card__value">{{ vm.pecas_em_estoque }}</p>
-      <p class="card__hint">Total de itens disponíveis</p>
+      <p class="card__hint">Total de itens disponíveis para venda</p>
     </article>
 
     <article class="card">
       <p class="card__label">Produção (30 dias)</p>
       <p class="card__value">{{ vm.producao_30d }}</p>
-      <p class="card__hint">Registros de produção no período</p>
+      <p class="card__hint">Registro de itens produzidos no período</p>
     </article>
   </section>
 
   <section class="shortcuts" aria-label="Atalhos rápidos">
     <h2 class="shortcuts__title">Atalhos rápidos</h2>
     <div class="shortcuts__grid">
-      <a class="shortcut" href="#">
+      <a class="shortcut" href="../producao/nova">
         <span class="shortcut__title">Registrar produção</span>
         <span class="shortcut__desc">Lançar nova produção do dia</span>
       </a>
-      <a class="shortcut" href="#">
+      <a class="shortcut" href="../producao/pecas/nova">
         <span class="shortcut__title">Nova peça no catálogo</span>
         <span class="shortcut__desc">Adicionar peça ao portfólio</span>
       </a>
-      <a class="shortcut" href="#">
+      <a class="shortcut" href="../materiais">
         <span class="shortcut__title">Repor matéria-prima</span>
         <span class="shortcut__desc">Adicionar materiais ao estoque</span>
       </a>
-      <a class="shortcut" href="#">
+      <a class="shortcut" href="../vendas">
         <span class="shortcut__title">Histórico de vendas</span>
         <span class="shortcut__desc">Consultar vendas registradas</span>
       </a>
