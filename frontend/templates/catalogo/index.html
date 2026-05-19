@@ -13,9 +13,9 @@
 <main class="content">
   <header class="content__header">
     <div>
-      <h1 class="content__title">Catálogo</h1>
+      <h1 class="content__title">Itens listados em Catálogo</h1>
       <p class="content__subtitle">
-        Vitrine de peças prontas e disponíveis para venda.
+        Vitrine de peças em catálogo, disponíveis para produção.
         Para cadastrar uma peça nova, use a área de
         <a href="{{ url_for('producao.index') }}">Produção</a>.
       </p>
@@ -55,7 +55,7 @@
               <div class="peca__info">
                 <strong class="peca__nome">{{ peca.nome }}</strong>
                 <span class="peca__valores">
-                  R$ {{ '%.2f'|format(peca.custo_producao) }}
+                  Custo de produção por peça: R$ {{ '%.2f'|format(peca.custo_producao) }}
                   • {{ peca.quantidade_estoque }} em estoque
                 </span>
               </div>
