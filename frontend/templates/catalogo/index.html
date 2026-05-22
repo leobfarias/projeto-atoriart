@@ -55,8 +55,13 @@
               <div class="peca__info">
                 <strong class="peca__nome">{{ peca.nome }}</strong>
                 <span class="peca__valores">
-                  Custo de produção por peça: R$ {{ '%.2f'|format(peca.custo_producao) }}
+                  Preço de venda R$ {{ '%.2f'|format(peca.preco_venda) }}
+                  • Custo R$ {{ '%.2f'|format(peca.custo_producao) }}
                   • {{ peca.quantidade_estoque }} em estoque
+                </span>
+                <span class="peca__lucro {% if peca.lucro < 0 %}peca__lucro--negativo{% endif %}">
+                  Lucro por peça: R$ {{ '%.2f'|format(peca.lucro) }}
+                  ({{ '%.1f'|format(peca.margem) }}% de margem)
                 </span>
               </div>
             </div>

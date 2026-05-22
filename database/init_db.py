@@ -1,11 +1,13 @@
 """Cria (ou recria) o banco SQLite em database/atoriart.sqlite3.
 
 Uso (da raiz do projeto):
-    python database/init_db.py
+    python database/init_db.py                  # banco VAZIO (só a estrutura)
+    python database/init_db.py --com-exemplos   # banco + dados de exemplo
 
 ATENÇÃO: roda DROP TABLE antes de criar. Se você já tinha dados, eles
 serão apagados. É o esperado nesta fase de desenvolvimento.
 """
+import argparse
 import sqlite3
 from datetime import date, timedelta
 from pathlib import Path
@@ -15,7 +17,7 @@ DB_PATH = DATABASE_DIR / "atoriart.sqlite3"
 SCHEMA_PATH = DATABASE_DIR / "schema.sql"
 
 
-def main():
+def main(com_exemplos: bool = False):
     DATABASE_DIR.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(DB_PATH)
@@ -25,8 +27,11 @@ def main():
     with open(SCHEMA_PATH, encoding="utf-8") as f:
         conn.executescript(f.read())
 
-    print("Inserindo dados de exemplo ...")
-    inserir_dados_exemplo(conn)
+    if com_exemplos:
+        print("Inserindo dados de exemplo ...")
+        inserir_dados_exemplo(conn)
+    else:
+        print("Banco vazio — nenhum dado de exemplo inserido.")
 
     conn.commit()
     conn.close()
@@ -56,15 +61,18 @@ def inserir_dados_exemplo(conn):
     )
 
     # --- Peças ---
+    # (nome, preco_venda, quantidade_estoque)
+    # O custo de produção NÃO é semeado: a view vw_peca_custo calcula
+    # a partir dos materiais ligados em peca_material logo abaixo.
+    # Os preços de venda ficam acima do custo dos materiais (lucro).
     pecas = [
-        # (nome, custo_producao, quantidade_estoque)
-        ("Brinco Folha em Macramê", 12.50,  8),
-        ("Colar Macramê Sol",       28.00,  3),
-        ("Pulseira Trançada",        9.80, 15),
-        ("Chaveiro Olho Grego",      6.40, 22),
+        ("Brinco Folha em Macramê", 18.00,  8),
+        ("Colar Macramê Sol",       32.00,  3),
+        ("Pulseira Trançada",       12.00, 15),
+        ("Chaveiro Olho Grego",      9.00, 22),
     ]
     conn.executemany(
-        "INSERT INTO peca (nome, custo_producao, quantidade_estoque) VALUES (?, ?, ?)",
+        "INSERT INTO peca (nome, preco_venda, quantidade_estoque) VALUES (?, ?, ?)",
         pecas,
     )
 
@@ -133,6 +141,36 @@ def inserir_dados_exemplo(conn):
         vendas,
     )
 
+    # --- Despesas ---
+    # (descricao, categoria, valor, data)
+    # Só custos operacionais/fixos — fora do escopo de produto. A
+    # matéria-prima da produção fica no próprio módulo (/materiais/).
+    # Categorias seguem a lista fixa em despesas_service.CATEGORIAS.
+    despesas = [
+        ("Aluguel do ateliê",              "Aluguel",                    600.00, dia(2)),
+        ("Conta de luz",                   "Contas e utilidades",         95.40, dia(5)),
+        ("Caixinhas e sacos para entrega", "Embalagem",                   42.50, dia(8)),
+        ("Impulsionamento no Instagram",   "Marketing",                   30.00, dia(11)),
+        ("Alicate de bico novo",           "Ferramentas e equipamentos",  27.90, dia(16)),
+        ("Frete dos Correios do mês",      "Transporte e frete",          54.30, dia(21)),
+        ("Taxa da maquininha de cartão",   "Taxas e tarifas",             18.70, dia(27)),
+    ]
+    conn.executemany(
+        "INSERT INTO despesa (descricao, categoria, valor, data) "
+        "VALUES (?, ?, ?, ?)",
+        despesas,
+    )
+
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Cria (ou recria) o banco SQLite do AtoriArt."
+    )
+    parser.add_argument(
+        "--com-exemplos",
+        action="store_true",
+        help="Popula o banco com dados de exemplo (materiais, peças, "
+             "produções e vendas fictícias). Sem esta flag, o banco fica vazio.",
+    )
+    args = parser.parse_args()
+    main(com_exemplos=args.com_exemplos)

@@ -126,7 +126,7 @@ def peca_editar(peca_id):
 
     valores = {
         "nome": peca.nome,
-        "custo_producao": peca.custo_producao,
+        "preco_venda": peca.preco_venda,
         "quantidade_estoque": peca.quantidade_estoque,
         "materiais": {
             im.material.id: _formatar_quantidade(im.quantidade)
@@ -169,7 +169,7 @@ def _valores_do_form(form, materiais_disponiveis):
             materiais[m.id] = raw
     return {
         "nome": form.get("nome", ""),
-        "custo_producao": form.get("custo_producao", ""),
+        "preco_venda": form.get("preco_venda", ""),
         "quantidade_estoque": form.get("quantidade_estoque", ""),
         "materiais": materiais,
     }

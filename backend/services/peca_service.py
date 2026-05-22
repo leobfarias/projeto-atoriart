@@ -4,6 +4,10 @@ A peça nasce aqui (em Produção), recebe quantidade através de lançamentos
 de produção e — quando seu estoque fica > 0 — aparece automaticamente no
 Catálogo (vitrine).
 
+O custo de produção NÃO é digitado: é derivado dos materiais da peça
+(view `vw_peca_custo`). O usuário informa apenas o `preco_venda` — o
+preço sugerido de venda. O lucro sai da diferença (ver model `Peca`).
+
 Funções:
     validar_form(form_data, materiais_disponiveis) -> (erros, valores)
     criar(form_data)                               -> (erros, peca_id)
@@ -29,9 +33,9 @@ def validar_form(form_data, materiais_disponiveis):
     elif len(nome) > 80:
         erros["nome"] = "Nome muito longo (máx 80 caracteres)."
 
-    custo = _numero(form_data.get("custo_producao"))
-    if custo is None or custo < 0:
-        erros["custo_producao"] = "Custo deve ser ≥ 0."
+    preco_venda = _numero(form_data.get("preco_venda"))
+    if preco_venda is None or preco_venda <= 0:
+        erros["preco_venda"] = "Preço de venda deve ser maior que zero."
 
     estoque = _inteiro(form_data.get("quantidade_estoque"))
     if estoque is None or estoque < 0:
@@ -50,7 +54,7 @@ def validar_form(form_data, materiais_disponiveis):
 
     valores = {
         "nome": nome,
-        "custo_producao": custo or 0.0,
+        "preco_venda": preco_venda or 0.0,
         "quantidade_estoque": estoque or 0,
         "materiais": materiais_selecionados,
     }

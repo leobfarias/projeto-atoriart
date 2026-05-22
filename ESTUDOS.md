@@ -627,6 +627,8 @@ Define todas as tabelas. Sempre começa com `DROP TABLE IF EXISTS`
 pra ser idempotente (rodar várias vezes não quebra).
 
 ```sql
+DROP VIEW  IF EXISTS vw_peca_custo;
+DROP TABLE IF EXISTS despesa;
 DROP TABLE IF EXISTS venda;
 DROP TABLE IF EXISTS producao;
 DROP TABLE IF EXISTS peca_material;
@@ -642,10 +644,11 @@ CREATE TABLE material (
     estoque_minimo      REAL    NOT NULL DEFAULT 0
 );
 
+-- `preco_venda` é digitado; o custo NÃO é coluna (vem da view abaixo).
 CREATE TABLE peca (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     nome                TEXT    NOT NULL,
-    custo_producao      REAL    NOT NULL,
+    preco_venda         REAL    NOT NULL,
     quantidade_estoque  INTEGER NOT NULL DEFAULT 0
 );
 
@@ -678,6 +681,24 @@ CREATE TABLE venda (
     FOREIGN KEY (peca_id) REFERENCES peca(id) ON DELETE RESTRICT
 );
 CREATE INDEX idx_venda_data ON venda(data);
+
+-- Despesa: registro puro, sem FK e sem efeito no estoque.
+CREATE TABLE despesa (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    descricao   TEXT    NOT NULL,
+    categoria   TEXT,
+    valor       REAL    NOT NULL,
+    data        TEXT    NOT NULL
+);
+CREATE INDEX idx_despesa_data ON despesa(data);
+
+-- Custo de produção da peça = soma dos materiais. VIEW, não coluna.
+CREATE VIEW vw_peca_custo AS
+SELECT pm.peca_id                            AS peca_id,
+       SUM(pm.quantidade * m.valor_unitario) AS custo_producao
+FROM peca_material pm
+JOIN material m ON m.id = pm.material_id
+GROUP BY pm.peca_id;
 ```
 
 **Conceitos a entender:**
@@ -690,14 +711,21 @@ CREATE INDEX idx_venda_data ON venda(data);
 - **ON DELETE RESTRICT**: se a peça tem vendas, **não pode apagar**.
   Vendas são histórico financeiro.
 - **CREATE INDEX**: acelera consultas com `WHERE data >= ?`.
+- **CREATE VIEW**: "tabela virtual" — uma consulta salva com nome.
+  `vw_peca_custo` calcula o custo de cada peça (soma dos materiais);
+  quem precisa do custo faz JOIN com ela em vez de repetir a conta.
 
 ### Seed — `database/init_db.py`
 
-Script que cria o banco e popula com dados de exemplo. Roda direto
-(`python database/init_db.py`), não precisa do Flask.
+Script que cria (ou recria) o banco. Roda direto, não precisa do Flask.
+Os dados de exemplo são **opcionais**, controlados pela flag
+`--com-exemplos`:
+
+- `python database/init_db.py` → banco **vazio** (só a estrutura).
+- `python database/init_db.py --com-exemplos` → banco + dados de exemplo.
 
 ```python
-def main():
+def main(com_exemplos=False):
     DATABASE_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON")
@@ -705,10 +733,13 @@ def main():
     with open(SCHEMA_PATH, encoding="utf-8") as f:
         conn.executescript(f.read())
 
-    inserir_dados_exemplo(conn)
+    if com_exemplos:
+        inserir_dados_exemplo(conn)
     conn.commit()
     conn.close()
 ```
+
+A flag é lida com `argparse` no bloco `if __name__ == "__main__"`.
 
 **Detalhe importante:** as datas das produções e vendas são geradas
 **relativas a `date.today()`**:
@@ -785,6 +816,11 @@ m.em_alerta    # True (chama o método, não precisa de parêntese)
 | [backend/models/peca.py](backend/models/peca.py) | `ItemMaterial`, `Peca` | Peça e materiais que ela consome |
 | [backend/models/producao.py](backend/models/producao.py) | `Producao` | Registro de "produzi N peças" |
 | [backend/models/venda.py](backend/models/venda.py) | `Venda` | Registro de "vendi N peças" |
+| [backend/models/despesa.py](backend/models/despesa.py) | `Despesa` | Registro de "gastei R$ Z com W" |
+
+> A `Peca` traz `custo_producao` já calculado (view `vw_peca_custo`) e
+> expõe as propriedades `lucro` (preço − custo) e `margem` (% sobre o
+> preço) — valor derivado mora no model/banco, nunca é digitado.
 
 ### Denormalização para display
 
@@ -1288,11 +1324,11 @@ relativo) ou pro painel.
 - [backend/services/dashboard_service.py](backend/services/dashboard_service.py)
 - [frontend/templates/dashboard/index.html](frontend/templates/dashboard/index.html)
 
-Tela de entrada. 4 cards com KPIs (faturamento 30d, receita líquida,
-peças em estoque, produção 30d). Atalhos rápidos. **Dados ainda
-mockados** — serão ligados aos repositórios numa etapa futura.
+Tela de entrada. 4 cards com KPIs lidos do banco (faturamento 30d,
+receita líquida, peças em estoque, produção 30d) e atalhos rápidos.
+A **receita líquida** = faturamento − despesas do período (ver 16.9).
 
-### 16.3 Catálogo — `/catalogo/` (CRUD completo)
+### 16.3 Catálogo — `/catalogo/` (vitrine, somente leitura)
 
 **Arquivos:**
 - [backend/blueprints/catalogo/routes.py](backend/blueprints/catalogo/routes.py)
@@ -1300,16 +1336,15 @@ mockados** — serão ligados aos repositórios numa etapa futura.
 - [backend/repositories/peca_repository.py](backend/repositories/peca_repository.py)
 - [backend/models/peca.py](backend/models/peca.py)
 - [frontend/templates/catalogo/index.html](frontend/templates/catalogo/index.html)
-- [frontend/templates/catalogo/form.html](frontend/templates/catalogo/form.html)
 
-4 cards (peças em estoque, peças cadastradas, custo total, vendas 30d).
-Lista numerada de peças. Cada peça tem botões **Editar**, **Apagar**
-e um `<details>` Materiais que expande mostrando os materiais da peça.
+Vitrine: lista **só as peças com `quantidade_estoque > 0`**. 3 cards
+(modelos disponíveis, peças em estoque, custo investido). Cada peça
+mostra preço de venda, custo, lucro/margem e um `<details>` Materiais
+que expande a tabela de materiais consumidos.
 
-**CRUD:** form único pra criar/editar com seleção de materiais
-(quantidade por material). Atualizar refaz `peca_material` em
-transação. Apagar bloqueado se a peça tem vendas históricas
-([ADR-007](#adr-007--efeitos-colaterais-no-estoque-produção-e-venda)).
+**Somente leitura** — o cadastro/edição/remoção da peça vive em
+Produção (`/producao/pecas/...`, ver 16.5). A peça aparece aqui
+automaticamente quando seu estoque fica > 0.
 
 ### 16.4 Matéria-prima — `/materiais/` (CRUD completo)
 
@@ -1344,6 +1379,13 @@ opcional como nota italicizada. Borda lateral laranja em cada registro.
 **CRUD (sem editar — é histórico):** criar produção **soma** a quantidade
 em `peca.quantidade_estoque` na mesma transação. Apagar **subtrai** e
 **bloqueia** se ficaria negativo (peças já foram vendidas).
+
+**Cadastro de peça (`/producao/pecas/nova` e `.../editar`):** a peça
+nasce aqui. O formulário pede nome, **preço de venda sugerido**, estoque
+inicial e a quantidade de cada material. O **custo de produção não é
+digitado** — é a soma dos materiais, calculada pela view `vw_peca_custo`.
+As listas de Produção e Catálogo mostram, por peça, custo, preço e
+lucro/margem ([ADR-010](#adr-010--custo-da-peça-calculado-por-uma-view)).
 
 ### 16.6 Vendas — `/vendas/` (CRUD: criar / apagar)
 
@@ -1396,6 +1438,39 @@ Conteúdo:
 3. **Banco de dados** — local, tamanho em KB, data de modificação,
    botão "Resetar banco" (placeholder + nota orientando rodar
    `python database/init_db.py`).
+
+### 16.9 Despesas — `/despesas/` (CRUD: criar / apagar)
+
+**Arquivos:**
+- [backend/blueprints/despesas/routes.py](backend/blueprints/despesas/routes.py)
+- [backend/services/despesas_service.py](backend/services/despesas_service.py)
+- [backend/repositories/despesa_repository.py](backend/repositories/despesa_repository.py)
+- [backend/models/despesa.py](backend/models/despesa.py)
+- [frontend/templates/despesas/form.html](frontend/templates/despesas/form.html)
+
+4 cards (despesas 30d, total gasto, despesa média, categoria que mais
+pesa). Lista do histórico recente, com badge da categoria e borda
+lateral vermelha ("saiu dinheiro").
+
+**O que torna a despesa diferente de venda e produção:** ela é um
+**registro puro**. Não tem `peca_id`, não tem chave estrangeira e não
+mexe em nenhum estoque. Por isso o `despesa_repository` é o mais simples
+do projeto — `criar()` é só um `INSERT` e `apagar()` é só um `DELETE`,
+sem o UPDATE de estoque que produção e venda fazem ([ADR-007](#adr-007--efeitos-colaterais-no-estoque-produção-e-venda)).
+
+**Escopo:** despesa é só **custo operacional/fixo fora do escopo de
+produto** — aluguel, contas, marketing, etc. A matéria-prima da
+produção NÃO entra aqui: ela tem o módulo dedicado `/materiais/`.
+
+**CRUD (sem editar):** criar/apagar. A categoria é opcional e validada
+contra a lista fixa em `despesas_service.CATEGORIAS` (Aluguel, Contas e
+utilidades, Marketing, Transporte e frete, Ferramentas e equipamentos,
+Embalagem, Taxas e tarifas, Outros) — mesma ideia das formas de
+pagamento em Vendas.
+
+**Ligação com o painel:** o total de despesas dos últimos 30 dias é o
+que o `dashboard_service` subtrai do faturamento para chegar na
+**receita líquida** real ([ADR-009](#adr-009--módulo-de-despesas-e-receita-líquida-real)).
 
 ---
 
@@ -1774,6 +1849,25 @@ gravam, ou nenhum grava.
 materiais ainda são repostos manualmente. Pode entrar como etapa
 futura.
 
+### ADR-009 — Módulo de Despesas e receita líquida real
+`despesa` é uma tabela **sem chave estrangeira** e **sem efeito no
+estoque** — um registro puro. Com o módulo no ar, o `dashboard_service`
+passou a calcular `receita_liquida = faturamento − despesas`.
+**Motivo:** despesa é um custo do negócio que não se liga a nenhuma
+peça ou material, então não cabe a ela o padrão do ADR-007 — criar e
+apagar são INSERT/DELETE simples. Antes deste módulo, o card "Receita
+líquida" do painel mostrava na verdade o lucro bruto das vendas; o
+rótulo "Faturamento menos despesas" só virou verdade agora.
+
+### ADR-010 — Custo da peça calculado por uma view
+O `custo_producao` da peça não é coluna nem é digitado: é a soma
+`quantidade × valor_unitario` dos materiais, calculada pela view SQL
+`vw_peca_custo`. O usuário digita só o `preco_venda` (preço sugerido).
+**Motivo:** custo é dado **derivado** — guardá-lo numa coluna deixaria
+ele velho quando o preço de um material mudasse. A view é fonte única
+da fórmula; `peca`, `venda` e `producao` fazem `LEFT JOIN` nela. Mesmo
+princípio das `@property` dos models: valor derivado se calcula.
+
 ---
 
 ## 20. Como rodar o projeto
@@ -1800,8 +1894,8 @@ python -c "import secrets; print(secrets.token_hex(32))"
 # 5. Gerar hash da senha do admin
 python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('SuaSenhaForte'))"
 
-# 6. Criar o banco com dados de exemplo
-python database/init_db.py
+# 6. Criar o banco (use --com-exemplos p/ popular com dados de teste)
+python database/init_db.py --com-exemplos
 
 # 7. Subir o servidor
 python run.py
@@ -1811,11 +1905,11 @@ python run.py
 ### Resetar o banco a qualquer momento
 
 ```bash
-python database/init_db.py
+python database/init_db.py                  # recria vazio
+python database/init_db.py --com-exemplos   # recria com dados de exemplo
 ```
 
-Apaga as tabelas e recria do zero com o seed. **Atenção:** perde
-todos os dados.
+Apaga as tabelas e recria do zero. **Atenção:** perde todos os dados.
 
 ### Estrutura do `.env` (referência)
 
@@ -1845,6 +1939,7 @@ SESSION_COOKIE_SECURE=0
 | **ViewModel**          | Estrutura de dados pronta pro template exibir                |
 | **Dataclass**          | Classe Python que só carrega dados (decorador `@dataclass`)  |
 | **JOIN**               | Comando SQL que junta linhas de duas ou mais tabelas         |
+| **View (SQL)**         | "Tabela virtual": consulta salva com nome, usada como tabela |
 | **PRAGMA**             | Comando SQLite pra ligar/desligar comportamentos             |
 | **FK (Foreign Key)**   | Coluna que referencia o ID de outra tabela                   |
 | **CASCADE**            | Apagar o pai apaga os filhos automaticamente                 |
@@ -1896,5 +1991,5 @@ SESSION_COOKIE_SECURE=0
 
 Esse projeto foi construído incrementalmente, etapa por etapa, sempre
 priorizando código limpo e arquitetura clara. A mesma disciplina vale
-pras próximas etapas (despesas, filtros de período, troca de senha
-pela interface, etc.).
+pras próximas etapas (filtros de período, troca de senha pela interface,
+baixa automática de matéria-prima, etc.).

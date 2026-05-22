@@ -1,0 +1,108 @@
+/* ============================================================
+   AtoriArt — despesas.css
+   Página de Despesas. Reaproveita .content, .cards, .card.
+   Espelha a estrutura de vendas.css; a borda lateral é vermelha
+   porque despesa é "saída de dinheiro".
+   ============================================================ */
+
+.content__subtitle {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+/* ---------- Lista de despesas ---------- */
+.despesas { margin-top: 8px; }
+.despesas__titulo { font-size: 1.1rem; margin-bottom: 12px; }
+
+.despesas__lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.despesas__vazio {
+  padding: 24px;
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-muted);
+  background: var(--color-surface);
+}
+
+/* ---------- Card da despesa ---------- */
+.despesa {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+  border-left: 3px solid var(--color-danger);
+}
+
+.despesa__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.despesa__info {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex: 1;
+  min-width: 220px;
+  flex-wrap: wrap;
+}
+
+.despesa__data {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  background: var(--color-surface-2);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.despesa__descricao {
+  color: var(--color-text);
+}
+
+.despesa__valor {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.despesa__acoes {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.despesa__form-apagar { display: inline; margin: 0; }
+.despesa__btn-apagar { color: var(--color-danger); }
+.despesa__btn-apagar:hover {
+  background: rgba(177, 58, 58, 0.06);
+  border-color: rgba(177, 58, 58, 0.3);
+}
+
+/* ---------- Badge da categoria ---------- */
+.badge-categoria {
+  display: inline-block;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+}

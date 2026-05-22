@@ -3,9 +3,10 @@
 Sistema web de gestão de estoque para artesanato. Aplicação administrativa
 (usuário único) construída com **Python + Flask + Jinja + SQLite**.
 
-> **Status:** Etapa 1 — fundação (estrutura, autenticação de admin, painel
-> com dados mockados). Os módulos de catálogo, matéria-prima, produção,
-> vendas, relatórios e despesas serão adicionados em etapas seguintes.
+> **Status:** Em desenvolvimento ativo. Fundação, autenticação de admin e
+> todos os módulos do domínio — catálogo, matéria-prima, produção, vendas,
+> despesas, relatórios e configurações — já implementados e ligados a
+> dados reais do banco.
 
 ---
 
@@ -15,7 +16,7 @@ Sistema web de gestão de estoque para artesanato. Aplicação administrativa
 - [Como executar localmente](#como-executar-localmente)
 - [Decisões de arquitetura](#decisões-de-arquitetura)
 - [Segurança](#segurança)
-- [Próximas etapas](#próximas-etapas)
+- [Estado atual](#estado-atual)
 
 ---
 
@@ -71,7 +72,7 @@ Projeto AtoriArt/
 │   ├── __init__.py                  # marca como pacote Python
 │   ├── db.py                        # get_db(), close_db(), init_app()
 │   ├── schema.sql                   # CREATE TABLE
-│   ├── init_db.py                   # cria/recria o .sqlite3 + seed
+│   ├── init_db.py                   # cria/recria o .sqlite3 (--com-exemplos p/ seed)
 │   └── atoriart.sqlite3             # gerado pelo init_db.py (gitignored)
 │
 ├── .env / .env.example              # Variáveis de ambiente
@@ -118,11 +119,15 @@ Projeto AtoriArt/
    python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('SuaSenhaForte'))"
    ```
 
-7. **Criar o banco SQLite** (uma vez; popula com dados de exemplo)
+7. **Criar o banco SQLite** (uma vez)
    ```bash
-   python database/init_db.py
+   python database/init_db.py                  # banco VAZIO (só a estrutura)
+   python database/init_db.py --com-exemplos   # banco + dados de exemplo
    ```
-   Isso cria `database/atoriart.sqlite3` com as tabelas e seed inicial.
+   Isso cria `database/atoriart.sqlite3` com as tabelas. Sem a flag, o banco
+   nasce vazio — pronto para você cadastrar seus próprios dados. Com
+   `--com-exemplos`, ele é populado com materiais, peças e vendas fictícias
+   úteis para ver o dashboard funcionando.
 
 8. **Subir o servidor**
    ```bash
@@ -188,17 +193,31 @@ acesso a dados está isolado nos repositórios.
 
 ---
 
-## Próximas etapas
+## Estado atual
 
-1. **Etapa 2 — Banco e infra de dados**
-   Criar `db.py` com `get_connection`/`init_db`, schema inicial em
-   `schema.sql`, primeiros repositórios (peças, materiais).
-2. **Etapa 3 — Catálogo de peças** (CRUD + listagem).
-3. **Etapa 4 — Matéria-prima** (estoque + reposição + alerta de estoque baixo
-   real).
-4. **Etapa 5 — Produção** (registro de produções).
-5. **Etapa 6 — Vendas** (registro + histórico + cálculo de faturamento real).
-6. **Etapa 7 — Despesas** (para fechar a fórmula de receita líquida).
-7. **Etapa 8 — Relatórios e configurações**.
+Todos os módulos do domínio estão implementados e ligados a dados reais
+do banco:
+
+| Módulo         | Rota             | O que faz                                                |
+|----------------|------------------|----------------------------------------------------------|
+| Catálogo       | `/catalogo/`     | Vitrine das peças com estoque > 0 (somente leitura).     |
+| Matéria-prima  | `/materiais/`    | CRUD de insumos com alerta de estoque baixo.             |
+| Produção       | `/producao/`     | Produções e cadastro de peças (custo vem dos materiais). |
+| Vendas         | `/vendas/`       | Registro de vendas com baixa automática de estoque.      |
+| Despesas       | `/despesas/`     | Registro de custos do negócio (alimenta a receita líquida).|
+| Relatórios     | `/relatorios/`   | Consolidação das vendas dos últimos 30 dias.             |
+| Configurações  | `/configuracoes/`| Informações do sistema, da aplicação e do banco.         |
+
+O **custo de produção de cada peça é calculado automaticamente** a partir
+dos materiais que ela consome (view `vw_peca_custo`). No cadastro da peça
+o usuário informa apenas o **preço de venda sugerido** — o sistema deriva
+o custo, o lucro e a margem.
+
+### Próximas etapas (backlog)
+
+1. Filtro de período nas listagens e no relatório (hoje fixo em 30 dias).
+2. Trocar senha pela interface (migrar credencial do `.env` para tabela).
+3. Resetar banco pela interface (hoje via `python database/init_db.py`).
+4. Baixa automática de matéria-prima ao registrar produção.
 
 A cada etapa, o `PROJECT_CONTEXT.md` é atualizado com as decisões tomadas.

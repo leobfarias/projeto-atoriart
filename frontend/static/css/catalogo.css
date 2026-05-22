@@ -68,6 +68,14 @@
   font-size: 0.9rem;
 }
 
+/* Lucro estimado da peça (preço de venda − custo dos materiais) */
+.peca__lucro {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-success);
+}
+.peca__lucro--negativo { color: var(--color-danger); }
+
 .peca__acoes {
   display: flex;
   gap: 6px;

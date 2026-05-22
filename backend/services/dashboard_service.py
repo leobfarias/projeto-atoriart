@@ -4,8 +4,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 
-from backend.repositories import material_repository, peca_repository
-from backend.repositories import producao_repository, venda_repository
+from backend.repositories import despesa_repository, material_repository
+from backend.repositories import peca_repository, producao_repository
+from backend.repositories import venda_repository
 
 
 @dataclass
@@ -40,7 +41,10 @@ def build_dashboard_view_model() -> DashboardViewModel:
 
     vendas = venda_repository.list_vendas(desde=desde)
     faturamento_30d = sum(v.valor_total for v in vendas)
-    receita_liquida = sum(v.lucro_bruto for v in vendas)
+
+    # Receita líquida = faturamento − despesas do período (ver glossário).
+    despesas = despesa_repository.list_despesas(desde=desde)
+    receita_liquida = faturamento_30d - sum(d.valor for d in despesas)
 
     pecas = peca_repository.list_pecas()
     pecas_em_estoque = sum(p.quantidade_estoque for p in pecas)

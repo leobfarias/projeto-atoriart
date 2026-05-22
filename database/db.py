@@ -4,7 +4,7 @@ Usa o objeto `g` do Flask para guardar a conexão durante o request atual.
 Ao fim do request, a conexão é fechada automaticamente.
 
 Para criar (ou recriar) o arquivo do banco, rode na raiz do projeto:
-    python init_db.py
+    python database/init_db.py
 """
 import sqlite3
 

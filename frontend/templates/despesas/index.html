@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Despesas — AtoriArt{% endblock %}
+{% block body_class %}has-sidebar{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/despesas.css') }}" />
+{% endblock %}
+
+{% block layout %}
+{% include "_sidebar.html" %}
+
+<main class="content">
+  <header class="content__header">
+    <div>
+      <h1 class="content__title">Despesas</h1>
+      <p class="content__subtitle">
+        Custos do negócio nos últimos {{ janela_dias }} dias.
+      </p>
+    </div>
+    <a class="btn btn--primary" href="{{ url_for('despesas.nova') }}">
+      Registrar despesa
+    </a>
+  </header>
+
+  <section class="cards" aria-label="Indicadores de despesas">
+    <article class="card">
+      <p class="card__label">Despesas ({{ janela_dias }} dias)</p>
+      <p class="card__value">{{ total_despesas }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Total gasto</p>
+      <p class="card__value">R$ {{ '%.2f'|format(valor_total) }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Despesa média</p>
+      <p class="card__value">R$ {{ '%.2f'|format(despesa_media) }}</p>
+    </article>
+    <article class="card">
+      <p class="card__label">Categoria que mais pesa</p>
+      <p class="card__value">{{ categoria_top or '—' }}</p>
+    </article>
+  </section>
+
+  <section class="despesas">
+    <h2 class="despesas__titulo">Histórico recente</h2>
+
+    {% if not despesas %}
+      <p class="despesas__vazio">
+        Nenhuma despesa registrada nos últimos {{ janela_dias }} dias.
+      </p>
+    {% else %}
+      <ol class="despesas__lista">
+        {% for d in despesas %}
+          <li class="despesa">
+            <div class="despesa__topo">
+              <div class="despesa__info">
+                <span class="despesa__data">{{ d.data }}</span>
+                <strong class="despesa__descricao">{{ d.descricao }}</strong>
+                <span class="despesa__valor">
+                  R$ {{ '%.2f'|format(d.valor) }}
+                </span>
+              </div>
+              <div class="despesa__acoes">
+                {% if d.categoria %}
+                  <span class="badge-categoria">{{ d.categoria }}</span>
+                {% endif %}
+                <form method="POST"
+                      action="{{ url_for('despesas.apagar', despesa_id=d.id) }}"
+                      class="despesa__form-apagar">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                  <button type="submit" class="btn btn--ghost despesa__btn-apagar">Apagar</button>
+                </form>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

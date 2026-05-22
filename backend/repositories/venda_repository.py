@@ -23,9 +23,11 @@ def list_vendas(desde=None):
     sql = (
         "SELECT v.id, v.peca_id, v.quantidade, v.valor_total, "
         "       v.data, v.forma_pagamento, "
-        "       pe.nome AS peca_nome, pe.custo_producao AS peca_custo "
+        "       pe.nome AS peca_nome, "
+        "       COALESCE(vpc.custo_producao, 0) AS peca_custo "
         "FROM venda v "
-        "JOIN peca pe ON pe.id = v.peca_id"
+        "JOIN peca pe ON pe.id = v.peca_id "
+        "LEFT JOIN vw_peca_custo vpc ON vpc.peca_id = pe.id"
     )
     params = ()
     if desde:
@@ -42,8 +44,11 @@ def get_venda(venda_id):
     r = db.execute(
         "SELECT v.id, v.peca_id, v.quantidade, v.valor_total, "
         "       v.data, v.forma_pagamento, "
-        "       pe.nome AS peca_nome, pe.custo_producao AS peca_custo "
-        "FROM venda v JOIN peca pe ON pe.id = v.peca_id "
+        "       pe.nome AS peca_nome, "
+        "       COALESCE(vpc.custo_producao, 0) AS peca_custo "
+        "FROM venda v "
+        "JOIN peca pe ON pe.id = v.peca_id "
+        "LEFT JOIN vw_peca_custo vpc ON vpc.peca_id = pe.id "
         "WHERE v.id = ?",
         (venda_id,),
     ).fetchone()

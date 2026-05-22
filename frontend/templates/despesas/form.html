@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Nova despesa — AtoriArt{% endblock %}
+{% block body_class %}has-sidebar{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}" />
+{% endblock %}
+
+{% block layout %}
+{% include "_sidebar.html" %}
+
+<main class="content">
+  <header class="content__header">
+    <div>
+      <h1 class="content__title">Nova despesa</h1>
+      <p class="content__subtitle">
+        Registre um custo do negócio. Ele entra no cálculo da receita líquida.
+      </p>
+    </div>
+  </header>
+
+  <form method="POST" action="{{ url_for('despesas.nova') }}" class="form-pagina">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+    <div class="campo {% if erros.descricao %}campo--erro{% endif %}">
+      <label class="campo__label" for="descricao">Descrição</label>
+      <input class="campo__input" type="text" name="descricao" id="descricao"
+             value="{{ valores.descricao|default('') }}" required maxlength="120" />
+      {% if erros.descricao %}<span class="campo__erro">{{ erros.descricao }}</span>{% endif %}
+    </div>
+
+    <div class="campo-linha">
+      <div class="campo {% if erros.valor %}campo--erro{% endif %}">
+        <label class="campo__label" for="valor">
+          Valor <span class="campo__label-extra">(R$)</span>
+        </label>
+        <input class="campo__input" type="number" step="0.01" min="0"
+               name="valor" id="valor"
+               value="{{ valores.valor|default('') }}" required />
+        {% if erros.valor %}<span class="campo__erro">{{ erros.valor }}</span>{% endif %}
+      </div>
+
+      <div class="campo {% if erros.data %}campo--erro{% endif %}">
+        <label class="campo__label" for="data">Data</label>
+        <input class="campo__input" type="date" name="data" id="data"
+               value="{{ valores.data|default(hoje) }}" max="{{ hoje }}" required />
+        {% if erros.data %}<span class="campo__erro">{{ erros.data }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="campo {% if erros.categoria %}campo--erro{% endif %}">
+      <label class="campo__label" for="categoria">
+        Categoria <span class="campo__label-extra">(opcional)</span>
+      </label>
+      <select class="campo__select" name="categoria" id="categoria">
+        <option value="">— não informar —</option>
+        {% for c in categorias %}
+          <option value="{{ c }}"
+                  {% if valores.categoria == c %}selected{% endif %}>
+            {{ c }}
+          </option>
+        {% endfor %}
+      </select>
+      {% if erros.categoria %}<span class="campo__erro">{{ erros.categoria }}</span>{% endif %}
+    </div>
+
+    <div class="form-acoes">
+      <a class="btn btn--ghost" href="{{ url_for('despesas.index') }}">Cancelar</a>
+      <button class="btn btn--primary" type="submit">Registrar despesa</button>
+    </div>
+  </form>
+</main>
+{% endblock %}

@@ -21,9 +21,11 @@ def list_producoes(desde=None):
     db = get_db()
     sql = (
         "SELECT p.id, p.peca_id, p.quantidade, p.data, p.observacao, "
-        "       pe.nome AS peca_nome, pe.custo_producao AS peca_custo "
+        "       pe.nome AS peca_nome, "
+        "       COALESCE(vpc.custo_producao, 0) AS peca_custo "
         "FROM producao p "
-        "JOIN peca pe ON pe.id = p.peca_id"
+        "JOIN peca pe ON pe.id = p.peca_id "
+        "LEFT JOIN vw_peca_custo vpc ON vpc.peca_id = pe.id"
     )
     params = ()
     if desde:
@@ -39,8 +41,11 @@ def get_producao(producao_id):
     db = get_db()
     r = db.execute(
         "SELECT p.id, p.peca_id, p.quantidade, p.data, p.observacao, "
-        "       pe.nome AS peca_nome, pe.custo_producao AS peca_custo "
-        "FROM producao p JOIN peca pe ON pe.id = p.peca_id "
+        "       pe.nome AS peca_nome, "
+        "       COALESCE(vpc.custo_producao, 0) AS peca_custo "
+        "FROM producao p "
+        "JOIN peca pe ON pe.id = p.peca_id "
+        "LEFT JOIN vw_peca_custo vpc ON vpc.peca_id = pe.id "
         "WHERE p.id = ?",
         (producao_id,),
     ).fetchone()

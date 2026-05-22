@@ -126,7 +126,7 @@ Projeto AtoriArt/
 └── README.md
 ```
 
-Cada novo módulo (materia_prima, producao, vendas, relatorios,
+Cada novo módulo (materia_prima, producao, vendas, despesas, relatorios,
 configuracoes) replica o padrão entre os três pacotes:
 
 ```
@@ -292,11 +292,36 @@ python -c "from werkzeug.security import generate_password_hash; print(generate_
   em todos os services.
 - Forms compartilham [frontend/static/css/forms.css](frontend/static/css/forms.css).
 
+### Etapa 11 ✅ — Despesas
+- Tabela `despesa` (descrição, categoria, valor, data). Registro **puro**:
+  sem FK e sem efeito no estoque — diferente de produção e venda.
+- Página `/despesas/` com 4 cards (despesas 30d, total gasto, despesa
+  média, categoria que mais pesa) e lista do histórico recente.
+- CRUD enxuto (criar/apagar, sem editar — mesmo padrão de Vendas).
+- Categoria validada contra lista fixa em `despesas_service.CATEGORIAS` —
+  **apenas custos operacionais/fixos** (aluguel, contas, marketing...).
+  A matéria-prima da produção NÃO é despesa: tem módulo próprio
+  (`/materiais/`).
+- **Receita líquida virou real:** `dashboard_service` agora calcula
+  `receita_liquida = faturamento − despesas` do período (antes usava
+  o lucro bruto das vendas como aproximação). Ver [ADR-009](#adr-009--módulo-de-despesas-e-receita-líquida-real).
+
+### Etapa 11.1 ✅ — Custo automático da peça + preço de venda
+- O custo de produção da peça **deixou de ser digitado**: agora é
+  derivado dos materiais que ela consome, via a view SQL `vw_peca_custo`
+  (`Σ quantidade × valor_unitario`).
+- O formulário da peça passou a pedir o **preço de venda sugerido**
+  (`peca.preco_venda`) no lugar do antigo campo de custo.
+- O model `Peca` ganhou as propriedades `lucro` (preço − custo) e
+  `margem` (% sobre o preço). Catálogo e Produção exibem custo, preço
+  e lucro de cada peça; o `<select>` de Vendas mostra o preço sugerido.
+- Ver [ADR-010](#adr-010--custo-da-peça-derivado-dos-materiais-via-view).
+
 **Não entregue (intencionalmente):**
 - Trocar senha pela interface (exige mover credencial p/ o DB).
 - Resetar banco pela interface (atualmente: `python database/init_db.py`).
-- Despesas (próximo módulo do domínio).
 - Filtro de período nas listagens / relatório (atualmente fixo em 30d).
+- Baixa automática de matéria-prima ao registrar produção.
 
 ---
 
@@ -314,7 +339,8 @@ python -c "from werkzeug.security import generate_password_hash; print(generate_
 | 8     | Configurações                 | Página `/configuracoes/` ✅                          |
 | 9     | CRUD em todos os módulos      | Formulários + validação + efeitos no estoque ✅      |
 | 10    | Catálogo (vitrine) + Produção (estoque) | Cat = só estoque > 0; cadastro de peça em Produção ✅ |
-| 11    | Despesas                      | Tabela `despesa` + página + receita líquida real    |
+| 11    | Despesas                      | Tabela `despesa` + página `/despesas/` + receita líquida real ✅ |
+| 11.1  | Custo automático da peça      | Custo derivado dos materiais (view) + preço de venda sugerido ✅ |
 | 12    | Filtro de período             | Seletor 7d / 30d / 90d / custom em vendas/relatórios |
 | 13    | Trocar senha pela interface   | Migrar credencial do `.env` p/ tabela `admin`        |
 
@@ -411,6 +437,40 @@ a regra implícita.
 `producao_service` (estoque atual + log de produções). O blueprint
 `producao` hospeda as rotas de peça (`/producao/pecas/nova` etc.).
 
+### ADR-009 — Módulo de Despesas e receita líquida real
+**Decisão:** modelar `despesa` como tabela **sem chave estrangeira** e
+**sem efeito colateral em estoque** — um registro puro (descrição,
+categoria, valor, data). Com o módulo no ar, `dashboard_service` passou
+a calcular `receita_liquida = faturamento − despesas` do período.
+**Motivo:** despesa não se conecta a peça nem a material — é um custo
+operacional/fixo do negócio fora do escopo de produto (aluguel, contas,
+marketing, taxas...). A matéria-prima da produção tem módulo próprio
+(`/materiais/`) e não entra aqui. Por isso não cabe a ela o
+padrão do [ADR-007](#adr-007--efeitos-colaterais-no-estoque-produção-e-venda):
+criar/apagar despesa é um INSERT/DELETE simples. Antes deste módulo, o
+card "Receita líquida" do painel exibia, na verdade, o lucro bruto das
+vendas — o rótulo "Faturamento menos despesas" só passou a ser verdadeiro
+agora. Segue o glossário: receita líquida = faturamento − despesas.
+**Trade-off conhecido:** Relatórios continua focado em vendas e ainda
+não desconta despesas do seu "Lucro bruto" — pode entrar quando o filtro
+de período (Etapa 12) unificar os dois períodos.
+
+### ADR-010 — Custo da peça derivado dos materiais via view
+**Decisão:** o `custo_producao` da peça não é mais coluna nem valor
+digitado. É calculado pela view SQL `vw_peca_custo` como a soma de
+`quantidade × valor_unitario` dos materiais que a peça consome. O
+usuário digita só o `preco_venda` (preço sugerido de venda).
+**Motivo:** o custo é um dado **derivado** — duplicá-lo numa coluna abre
+espaço para inconsistência (muda o preço de um material e o custo da
+peça fica velho). A view é fonte única da fórmula: `peca`, `venda` e
+`producao` fazem `LEFT JOIN vw_peca_custo` e enxergam sempre o custo
+atual. Mesmo espírito das `@property` dos models (`lucro_bruto`,
+`em_alerta`): valor derivado não se armazena, se calcula.
+**Trade-off conhecido:** o custo de uma venda antiga reflete o preço
+*atual* dos materiais, não o da época da venda. Aceitável neste estágio
+— o sistema já se comportava assim quando o custo era coluna lida por
+JOIN. Um snapshot histórico por venda pode entrar no futuro.
+
 ---
 
 ## 10. Glossário curto
@@ -419,5 +479,9 @@ a regra implícita.
 - **Produção:** registro de fabricação de N peças em uma data.
 - **Venda:** registro de venda com valor.
 - **Despesa:** custo fixo ou variável que reduz a receita líquida.
+- **Custo de produção:** soma dos materiais de uma peça — calculado
+  (view `vw_peca_custo`), nunca digitado.
+- **Preço de venda:** preço sugerido de venda da peça, definido pelo
+  usuário. **Lucro da peça** = preço de venda − custo de produção.
 - **Faturamento:** soma bruta de vendas no período.
 - **Receita líquida:** faturamento − despesas no período.

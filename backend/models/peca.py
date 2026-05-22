@@ -22,8 +22,26 @@ class ItemMaterial:
 
 @dataclass
 class Peca:
+    """Uma peça do catálogo.
+
+    `preco_venda` é o preço sugerido de venda — o único valor financeiro
+    que o usuário digita. `custo_producao` NÃO é digitado: é calculado a
+    partir dos materiais (view `vw_peca_custo`) e chega já pronto do
+    repositório. O lucro/margem saem da diferença entre os dois.
+    """
     id: int
     nome: str
-    custo_producao: float
+    preco_venda: float
     quantidade_estoque: int
+    custo_producao: float = 0.0          # calculado: soma dos materiais
     materiais: list = field(default_factory=list)
+
+    @property
+    def lucro(self) -> float:
+        """Lucro estimado por peça: preço de venda − custo dos materiais."""
+        return self.preco_venda - self.custo_producao
+
+    @property
+    def margem(self) -> float:
+        """Margem do lucro sobre o preço de venda, em %."""
+        return (self.lucro / self.preco_venda * 100) if self.preco_venda else 0.0

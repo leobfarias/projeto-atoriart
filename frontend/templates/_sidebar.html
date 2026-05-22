@@ -27,6 +27,10 @@
         <a class="sidebar__link {% if request.endpoint and request.endpoint.startswith('vendas.') %}is-active{% endif %}"
            href="{{ url_for('vendas.index') }}">Vendas</a>
       </li>
+      <li>
+        <a class="sidebar__link {% if request.endpoint and request.endpoint.startswith('despesas.') %}is-active{% endif %}"
+           href="{{ url_for('despesas.index') }}">Despesas</a>
+      </li>
     </ul>
 
     <p class="sidebar__section-title">Análise</p>
