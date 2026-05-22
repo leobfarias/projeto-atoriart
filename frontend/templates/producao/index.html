@@ -65,7 +65,7 @@
                 <span class="peca__valores">
                   {{ peca.quantidade_estoque }} em estoque
                   • Custo R$ {{ '%.2f'|format(peca.custo_producao) }}
-                  • Preço de venda R$ {{ '%.2f'|format(peca.preco_venda) }}
+                  • Preço de venda sugerido R$ {{ '%.2f'|format(peca.preco_venda) }}
                 </span>
                 <span class="peca__lucro {% if peca.lucro < 0 %}peca__lucro--negativo{% endif %}">
                   Lucro por peça: R$ {{ '%.2f'|format(peca.lucro) }}

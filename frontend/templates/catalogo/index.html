@@ -15,7 +15,7 @@
     <div>
       <h1 class="content__title">Itens listados em Catálogo</h1>
       <p class="content__subtitle">
-        Vitrine de peças em catálogo, disponíveis para produção.
+        Vitrine de peças produzidas em catálogo, disponíveis para venda.
         Para cadastrar uma peça nova, use a área de
         <a href="{{ url_for('producao.index') }}">Produção</a>.
       </p>
@@ -32,7 +32,7 @@
       <p class="card__value">{{ pecas_em_estoque }}</p>
     </article>
     <article class="card">
-      <p class="card__label">Custo investido na vitrine</p>
+      <p class="card__label">Custo investido na vitrine (itens produzidos)</p>
       <p class="card__value">R$ {{ '%.2f'|format(custo_investido) }}</p>
     </article>
   </section>
