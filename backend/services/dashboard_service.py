@@ -42,9 +42,10 @@ def build_dashboard_view_model() -> DashboardViewModel:
     vendas = venda_repository.list_vendas(desde=desde)
     faturamento_30d = sum(v.valor_total for v in vendas)
 
-    # Receita líquida = faturamento − despesas do período (ver glossário).
+    # Receita líquida = faturamento − despesas do período - investimento em materiais(ver glossário).
     despesas = despesa_repository.list_despesas(desde=desde)
-    receita_liquida = faturamento_30d - sum(d.valor for d in despesas)
+    materiais = material_repository.list_materiais()
+    receita_liquida = faturamento_30d - sum(d.valor for d in despesas) - sum(m.quantidade_estoque * m.valor_unitario for m in materiais)
 
     pecas = peca_repository.list_pecas()
     pecas_em_estoque = sum(p.quantidade_estoque for p in pecas)
