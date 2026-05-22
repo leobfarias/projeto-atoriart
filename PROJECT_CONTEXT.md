@@ -317,6 +317,33 @@ python -c "from werkzeug.security import generate_password_hash; print(generate_
   e lucro de cada peça; o `<select>` de Vendas mostra o preço sugerido.
 - Ver [ADR-010](#adr-010--custo-da-peça-derivado-dos-materiais-via-view).
 
+### Etapa 11.2 ✅ — Foto de produto
+- Coluna `foto TEXT` adicionada à tabela `peca` (guarda o nome do
+  arquivo, não o binário). O campo é opcional — `NULL` quando sem foto.
+- **Migração automática e não destrutiva:** `database/db.py` verifica
+  via `PRAGMA table_info(peca)` se a coluna existe e aplica
+  `ALTER TABLE peca ADD COLUMN foto TEXT` na inicialização, sem apagar
+  dados existentes. O `schema.sql` também foi atualizado para novos
+  bancos.
+- Formulário de cadastro e edição de peça (`/producao/pecas/nova` e
+  `.../editar`) ganhou `enctype="multipart/form-data"` e um campo
+  `<input type="file">` opcional, com pré-visualização da foto atual
+  no modo de edição.
+- **Padronização do nome:** o arquivo é salvo com o padrão
+  `YYYYMMDD_HHMMSS_<8hex>.<ext>` (ex.: `20260522_143022_a3f9b12c.jpg`),
+  garantindo unicidade independente do nome original.
+- **Armazenamento:** os arquivos ficam em `frontend/static/uploads/`
+  (servidos diretamente pelo Flask como `static`). A pasta é criada
+  automaticamente na primeira subida.
+- **Exibição:** Catálogo e aba Produção (estoque atual) exibem a foto
+  como thumbnail ao lado do nome da peça, quando disponível.
+- **Rollback:** se o upload ocorrer mas a validação do form falhar,
+  o arquivo salvo é removido antes de re-renderizar o form com erros.
+  Ao editar com nova foto, a foto antiga é apagada do disco só após
+  o `commit()` bem-sucedido.
+- Extensões aceitas: `jpg`, `jpeg`, `png`, `gif`, `webp`.
+- Ver [ADR-011](#adr-011--upload-de-fotos-de-produto).
+
 **Não entregue (intencionalmente):**
 - Trocar senha pela interface (exige mover credencial p/ o DB).
 - Resetar banco pela interface (atualmente: `python database/init_db.py`).
@@ -341,6 +368,7 @@ python -c "from werkzeug.security import generate_password_hash; print(generate_
 | 10    | Catálogo (vitrine) + Produção (estoque) | Cat = só estoque > 0; cadastro de peça em Produção ✅ |
 | 11    | Despesas                      | Tabela `despesa` + página `/despesas/` + receita líquida real ✅ |
 | 11.1  | Custo automático da peça      | Custo derivado dos materiais (view) + preço de venda sugerido ✅ |
+| 11.2  | Foto de produto               | Upload de foto opcional por peça; exibida no Catálogo e Produção ✅ |
 | 12    | Filtro de período             | Seletor 7d / 30d / 90d / custom em vendas/relatórios |
 | 13    | Trocar senha pela interface   | Migrar credencial do `.env` p/ tabela `admin`        |
 
@@ -454,6 +482,34 @@ agora. Segue o glossário: receita líquida = faturamento − despesas.
 **Trade-off conhecido:** Relatórios continua focado em vendas e ainda
 não desconta despesas do seu "Lucro bruto" — pode entrar quando o filtro
 de período (Etapa 12) unificar os dois períodos.
+
+### ADR-011 — Upload de fotos de produto
+**Decisão:** fotos são armazenadas **em disco** (`frontend/static/uploads/`),
+e o banco guarda apenas o nome do arquivo gerado (`foto TEXT NULL`).
+O nome segue o padrão `YYYYMMDD_HHMMSS_<8hex>.<ext>` para garantir
+unicidade sem depender do nome original enviado pelo usuário.
+**Motivo:** guardar o binário no SQLite (coluna BLOB) é possível mas
+torna o banco pesado, impede o Flask de servir os arquivos diretamente
+via `url_for('static', ...)` e dificulta inspeção. A abordagem "arquivo
+em disco + nome no banco" é o padrão da web: banco leve, arquivos
+servidos pelo servidor estático.
+**Migração:** a coluna `foto` é adicionada via `ALTER TABLE` automático
+na inicialização (`database/db.py._apply_migrations`), sem recriar o
+banco — dados existentes são preservados.
+**Rollback no formulário:** o arquivo é salvo em disco antes da validação
+do form para poder passar o nome ao repositório; se a validação falhar,
+o arquivo é deletado antes de re-renderizar o form. Ao editar com nova
+foto, a antiga é deletada do disco apenas após o `commit()` bem-sucedido.
+**Responsabilidade de cada camada:**
+- Blueprint: `_salvar_foto()` e `_deletar_foto()` — única camada que
+  toca o sistema de arquivos (Flask-específico).
+- Service: recebe o `foto` (nome já gerado ou `None`) como parâmetro,
+  passa ao repositório.
+- Repository: trata `foto` como mais uma coluna no `INSERT`/`UPDATE`.
+**Trade-off conhecido:** arquivos órfãos (peça apagada sem limpar o
+arquivo) não são removidos automaticamente — `peca_apagar` apaga só o
+registro do banco. Se relevante no futuro, pode-se adicionar limpeza no
+`peca_service.apagar()`.
 
 ### ADR-010 — Custo da peça derivado dos materiais via view
 **Decisão:** o `custo_producao` da peça não é mais coluna nem valor

@@ -52,6 +52,10 @@
         {% for peca in pecas %}
           <li class="peca">
             <div class="peca__topo">
+              {% if peca.foto %}
+                <img src="{{ url_for('static', filename='uploads/' + peca.foto) }}"
+                     alt="{{ peca.nome }}" class="peca__foto" />
+              {% endif %}
               <div class="peca__info">
                 <strong class="peca__nome">{{ peca.nome }}</strong>
                 <span class="peca__valores">

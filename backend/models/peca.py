@@ -34,6 +34,7 @@ class Peca:
     preco_venda: float
     quantidade_estoque: int
     custo_producao: float = 0.0          # calculado: soma dos materiais
+    foto: str | None = None              # nome do arquivo em static/uploads/
     materiais: list = field(default_factory=list)
 
     @property

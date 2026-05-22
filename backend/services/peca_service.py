@@ -63,21 +63,21 @@ def validar_form(form_data, materiais_disponiveis):
 
 # ---------- Ações ----------
 
-def criar(form_data):
+def criar(form_data, foto=None):
     materiais_disponiveis = material_repository.list_materiais()
     erros, v = validar_form(form_data, materiais_disponiveis)
     if erros:
         return erros, None
-    novo_id = peca_repository.criar(**v)
+    novo_id = peca_repository.criar(**v, foto=foto)
     return {}, novo_id
 
 
-def atualizar(peca_id, form_data):
+def atualizar(peca_id, form_data, foto=None):
     materiais_disponiveis = material_repository.list_materiais()
     erros, v = validar_form(form_data, materiais_disponiveis)
     if erros:
         return erros, None
-    peca_repository.atualizar(peca_id, **v)
+    peca_repository.atualizar(peca_id, **v, foto=foto)
     return {}, None
 
 

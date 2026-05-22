@@ -27,6 +27,7 @@ from backend.models.peca import ItemMaterial, Material, Peca
 # o custo de produção calculado pela view vw_peca_custo.
 _SELECT_PECA = (
     "SELECT pe.id, pe.nome, pe.preco_venda, pe.quantidade_estoque, "
+    "       pe.foto, "
     "       COALESCE(vpc.custo_producao, 0) AS custo_producao "
     "FROM peca pe "
     "LEFT JOIN vw_peca_custo vpc ON vpc.peca_id = pe.id "
@@ -54,13 +55,13 @@ def get_peca(peca_id):
 
 # ---------- Escrita ----------
 
-def criar(nome, preco_venda, quantidade_estoque, materiais):
+def criar(nome, preco_venda, quantidade_estoque, materiais, foto=None):
     """Cria peça e os vínculos em peca_material numa só transação."""
     db = get_db()
     cursor = db.execute(
-        "INSERT INTO peca (nome, preco_venda, quantidade_estoque) "
-        "VALUES (?, ?, ?)",
-        (nome, preco_venda, quantidade_estoque),
+        "INSERT INTO peca (nome, preco_venda, quantidade_estoque, foto) "
+        "VALUES (?, ?, ?, ?)",
+        (nome, preco_venda, quantidade_estoque, foto),
     )
     peca_id = cursor.lastrowid
     _gravar_materiais(db, peca_id, materiais)
@@ -68,13 +69,13 @@ def criar(nome, preco_venda, quantidade_estoque, materiais):
     return peca_id
 
 
-def atualizar(peca_id, nome, preco_venda, quantidade_estoque, materiais):
+def atualizar(peca_id, nome, preco_venda, quantidade_estoque, materiais, foto=None):
     """Atualiza peça e refaz a lista de materiais (apaga + reinsere)."""
     db = get_db()
     db.execute(
-        "UPDATE peca SET nome = ?, preco_venda = ?, quantidade_estoque = ? "
+        "UPDATE peca SET nome = ?, preco_venda = ?, quantidade_estoque = ?, foto = ? "
         "WHERE id = ?",
-        (nome, preco_venda, quantidade_estoque, peca_id),
+        (nome, preco_venda, quantidade_estoque, foto, peca_id),
     )
     db.execute("DELETE FROM peca_material WHERE peca_id = ?", (peca_id,))
     _gravar_materiais(db, peca_id, materiais)
@@ -105,6 +106,7 @@ def _row_to_peca(db, r):
         preco_venda=r["preco_venda"],
         quantidade_estoque=r["quantidade_estoque"],
         custo_producao=r["custo_producao"],
+        foto=r["foto"],
         materiais=_materiais_da_peca(db, r["id"]),
     )
 

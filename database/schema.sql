@@ -25,7 +25,8 @@ CREATE TABLE peca (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     nome                TEXT    NOT NULL,
     preco_venda         REAL    NOT NULL,
-    quantidade_estoque  INTEGER NOT NULL DEFAULT 0
+    quantidade_estoque  INTEGER NOT NULL DEFAULT 0,
+    foto                TEXT                          -- nome do arquivo em static/uploads/
 );
 
 -- Relação "uma peça usa N materiais, cada um em uma quantidade"

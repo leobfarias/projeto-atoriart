@@ -49,6 +49,9 @@ class BaseConfig:
     DATABASE_DIR = BASE_DIR / "database"
     DATABASE_PATH = DATABASE_DIR / "atoriart.sqlite3"
 
+    # Pasta onde as fotos de produtos são armazenadas (servida como static).
+    UPLOAD_FOLDER = BASE_DIR / "frontend" / "static" / "uploads"
+
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True

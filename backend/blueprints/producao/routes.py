@@ -9,14 +9,43 @@ Abriga dois conjuntos de rotas:
   mexem em `peca_service`. A peça "nasce" aqui porque é
   conceitualmente a tela de produção/estoque.
 """
-from datetime import date
+import os
+import uuid
+from datetime import date, datetime
 
-from flask import (Blueprint, abort, flash, redirect, render_template,
-                   request, url_for)
+from flask import (Blueprint, abort, current_app, flash, redirect,
+                   render_template, request, url_for)
 
 from backend.repositories import material_repository, peca_repository
 from backend.security import login_required, require_csrf
 from backend.services import peca_service, producao_service
+
+_EXTENSOES_FOTO = {"jpg", "jpeg", "png", "gif", "webp"}
+
+
+def _salvar_foto(arquivo):
+    """Valida extensão, gera nome único e salva o arquivo. Retorna o nome ou None."""
+    if not arquivo or not arquivo.filename:
+        return None
+    ext = arquivo.filename.rsplit(".", 1)[-1].lower() if "." in arquivo.filename else ""
+    if ext not in _EXTENSOES_FOTO:
+        return None
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    nome_final = f"{timestamp}_{uuid.uuid4().hex[:8]}.{ext}"
+    pasta = current_app.config["UPLOAD_FOLDER"]
+    os.makedirs(pasta, exist_ok=True)
+    arquivo.save(os.path.join(pasta, nome_final))
+    return nome_final
+
+
+def _deletar_foto(nome_arquivo):
+    """Remove o arquivo de foto do disco, ignorando se não existir."""
+    if not nome_arquivo:
+        return
+    try:
+        os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], nome_arquivo))
+    except FileNotFoundError:
+        pass
 
 producao_bp = Blueprint("producao", __name__, url_prefix="/producao")
 
@@ -79,14 +108,17 @@ def peca_nova():
 
     if request.method == "POST":
         require_csrf()
-        erros, _ = peca_service.criar(request.form)
+        foto_nova = _salvar_foto(request.files.get("foto"))
+        erros, _ = peca_service.criar(request.form, foto=foto_nova)
         if erros:
+            _deletar_foto(foto_nova)
             return render_template(
                 "producao/peca_form.html",
                 modo="novo",
                 erros=erros,
                 valores=_valores_do_form(request.form, materiais_disponiveis),
                 materiais_disponiveis=materiais_disponiveis,
+                foto_atual=None,
             )
         flash("Peça cadastrada.", "success")
         return redirect(url_for("producao.index"))
@@ -97,6 +129,7 @@ def peca_nova():
         erros={},
         valores={"materiais": {}},
         materiais_disponiveis=materiais_disponiveis,
+        foto_atual=None,
     )
 
 
@@ -112,15 +145,23 @@ def peca_editar(peca_id):
 
     if request.method == "POST":
         require_csrf()
-        erros, _ = peca_service.atualizar(peca_id, request.form)
+        foto_nova = _salvar_foto(request.files.get("foto"))
+        # Se nenhuma foto nova enviada, mantém a existente
+        foto_a_salvar = foto_nova if foto_nova else peca.foto
+        erros, _ = peca_service.atualizar(peca_id, request.form, foto=foto_a_salvar)
         if erros:
+            _deletar_foto(foto_nova)
             return render_template(
                 "producao/peca_form.html",
                 modo="editar", peca_id=peca_id,
                 erros=erros,
                 valores=_valores_do_form(request.form, materiais_disponiveis),
                 materiais_disponiveis=materiais_disponiveis,
+                foto_atual=peca.foto,
             )
+        # Substitui foto antiga somente após salvar com sucesso
+        if foto_nova and peca.foto:
+            _deletar_foto(peca.foto)
         flash("Peça atualizada.", "success")
         return redirect(url_for("producao.index"))
 
@@ -138,6 +179,7 @@ def peca_editar(peca_id):
         modo="editar", peca_id=peca_id,
         erros={}, valores=valores,
         materiais_disponiveis=materiais_disponiveis,
+        foto_atual=peca.foto,
     )
 
 

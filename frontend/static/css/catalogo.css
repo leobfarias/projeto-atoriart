@@ -89,6 +89,36 @@
   border-color: rgba(177, 58, 58, 0.3);
 }
 
+/* ---------- Foto do produto ---------- */
+.peca__foto {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+  order: -1;          /* foto sempre antes do bloco de info */
+}
+
+/* Foto no formulário de cadastro/edição */
+.foto-atual {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.foto-atual__img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+.foto-atual__legenda {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
 /* ---------- Bloco de materiais (tag <details>) ---------- */
 .peca__materiais {
   margin-top: 12px;

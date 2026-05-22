@@ -29,7 +29,7 @@
     </div>
   </header>
 
-  <form method="POST" class="form-pagina"
+  <form method="POST" enctype="multipart/form-data" class="form-pagina"
         action="{% if modo == 'novo' %}{{ url_for('producao.peca_nova') }}{% else %}{{ url_for('producao.peca_editar', peca_id=peca_id) }}{% endif %}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
@@ -60,6 +60,22 @@
                value="{{ valores.quantidade_estoque|default('') }}" required />
         {% if erros.quantidade_estoque %}<span class="campo__erro">{{ erros.quantidade_estoque }}</span>{% endif %}
       </div>
+    </div>
+
+    {# ---------- Foto do produto ---------- #}
+    <div class="campo">
+      <label class="campo__label" for="foto">
+        Foto do produto
+        <span class="campo__label-extra">(opcional — JPG, PNG, WEBP, GIF)</span>
+      </label>
+      {% if foto_atual %}
+        <div class="foto-atual">
+          <img src="{{ url_for('static', filename='uploads/' + foto_atual) }}"
+               alt="Foto atual" class="foto-atual__img" />
+          <p class="foto-atual__legenda">Foto atual. Envie uma nova para substituir.</p>
+        </div>
+      {% endif %}
+      <input class="campo__input" type="file" name="foto" id="foto" accept="image/*" />
     </div>
 
     {# ---------- Seção de materiais ---------- #}

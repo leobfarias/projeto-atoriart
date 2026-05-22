@@ -33,3 +33,14 @@ def close_db(error=None):
 def init_app(app):
     """Registra o fechamento automático da conexão na app Flask."""
     app.teardown_appcontext(close_db)
+    _apply_migrations(app)
+
+
+def _apply_migrations(app):
+    """Aplica migrações incrementais sem recriar o banco (preserva dados)."""
+    conn = sqlite3.connect(app.config["DATABASE_PATH"])
+    colunas = [row[1] for row in conn.execute("PRAGMA table_info(peca)").fetchall()]
+    if "foto" not in colunas:
+        conn.execute("ALTER TABLE peca ADD COLUMN foto TEXT")
+        conn.commit()
+    conn.close()
