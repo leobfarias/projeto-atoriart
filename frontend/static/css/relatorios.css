@@ -3,6 +3,156 @@
    Página de Relatórios. Reaproveita .content, .cards, .card.
    ============================================================ */
 
+/* ---------- Painel de filtros ---------- */
+.filtro-painel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.filtro-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.filtro-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.filtro-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+}
+
+.filtro-select {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.filtro-acoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 18px;
+}
+
+.filtro-btn {
+  padding: 7px 18px;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.filtro-btn:hover { opacity: 0.88; }
+
+.filtro-limpar {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+.filtro-limpar:hover { color: var(--color-text); }
+
+/* ---------- Seção de resultado do filtro ---------- */
+.filtro-resultado {
+  border-left: 3px solid var(--color-primary);
+}
+
+.relatorio-badge {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-muted);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.filtro-subtitulo {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 18px 0 10px;
+}
+
+/* KPIs do filtro (mini cards horizontais) */
+.filtro-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.filtro-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  padding: 10px 14px;
+  min-width: 140px;
+}
+
+.filtro-kpi__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+}
+
+.filtro-kpi__valor {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* Lista de peças que usam um material */
+.filtro-lista-pecas {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filtro-lista-pecas li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: var(--color-surface-2);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.filtro-detalhe {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
 .content__subtitle {
   color: var(--color-muted);
   font-size: 0.9rem;

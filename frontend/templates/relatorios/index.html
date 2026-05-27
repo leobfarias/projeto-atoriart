@@ -21,6 +21,7 @@
     </div>
   </header>
 
+  {# ---------- KPIs gerais (sempre visíveis) ---------- #}
   <section class="cards" aria-label="Indicadores financeiros">
     <article class="card">
       <p class="card__label">Faturamento</p>
@@ -40,91 +41,415 @@
     </article>
   </section>
 
-  {# ---------- Top 5 peças mais lucrativas ---------- #}
-  <section class="relatorio-secao">
-    <h2 class="relatorio-secao__titulo">Peças mais lucrativas</h2>
-    {% if not top_pecas %}
-      <p class="relatorio-secao__vazio">Nenhuma venda no período.</p>
-    {% else %}
-      <ol class="ranking">
-        {% for p in top_pecas %}
-          <li class="ranking__item">
-            <span class="ranking__nome">{{ p.peca_nome }}</span>
-            <span class="ranking__info">
-              {{ p.quantidade }} un • R$ {{ '%.2f'|format(p.faturamento) }} fat.
-            </span>
-            <span class="ranking__lucro">
-              Lucro: R$ {{ '%.2f'|format(p.lucro) }}
-              <small>({{ '%.1f'|format(p.margem) }}%)</small>
-            </span>
-          </li>
-        {% endfor %}
-      </ol>
-    {% endif %}
-  </section>
-
-  {# ---------- Distribuição por forma de pagamento ---------- #}
-  <section class="relatorio-secao">
-    <h2 class="relatorio-secao__titulo">Formas de pagamento</h2>
-    {% if not formas_pagamento %}
-      <p class="relatorio-secao__vazio">Nenhuma venda no período.</p>
-    {% else %}
-      <ul class="pagamentos">
-        {% for f in formas_pagamento %}
-          <li class="pagamento">
-            <div class="pagamento__cabecalho">
-              <span class="pagamento__nome">{{ f.forma }}</span>
-              <span class="pagamento__valor">
-                R$ {{ '%.2f'|format(f.valor) }}
-                <small>({{ '%.1f'|format(f.pct) }}%)</small>
-              </span>
-            </div>
-            <meter class="pagamento__barra"
-                   min="0" max="100" value="{{ '%.2f'|format(f.pct) }}"
-                   aria-label="Porcentagem do faturamento via {{ f.forma }}">
-              {{ '%.1f'|format(f.pct) }}%
-            </meter>
-          </li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  </section>
-
-  {# ---------- Tabela detalhada por peça ---------- #}
-  <section class="relatorio-secao">
-    <h2 class="relatorio-secao__titulo">Detalhamento por peça</h2>
-    {% if not pecas_detalhe %}
-      <p class="relatorio-secao__vazio">Nenhuma venda no período.</p>
-    {% else %}
-      <div class="tabela-wrap">
-        <table class="tabela-pecas">
-          <thead>
-            <tr>
-              <th>Peça</th>
-              <th class="num">Vendas</th>
-              <th class="num">Qtd</th>
-              <th class="num">Faturamento</th>
-              <th class="num">Custo</th>
-              <th class="num">Lucro</th>
-              <th class="num">Margem</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for p in pecas_detalhe %}
-              <tr>
-                <td>{{ p.peca_nome }}</td>
-                <td class="num">{{ p.vendas }}</td>
-                <td class="num">{{ p.quantidade }}</td>
-                <td class="num">R$ {{ '%.2f'|format(p.faturamento) }}</td>
-                <td class="num">R$ {{ '%.2f'|format(p.custo) }}</td>
-                <td class="num">R$ {{ '%.2f'|format(p.lucro) }}</td>
-                <td class="num">{{ '%.1f'|format(p.margem) }}%</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+  {# ---------- Painel de filtros ---------- #}
+  <section class="filtro-painel" aria-label="Filtrar relatório">
+    <form class="filtro-form" method="get" action="{{ url_for('relatorios.index') }}">
+      <div class="filtro-grupo">
+        <label class="filtro-label" for="filtro-tipo">Filtrar por</label>
+        <select class="filtro-select" id="filtro-tipo" name="filtro">
+          <option value="">— Visão geral —</option>
+          <option value="materia_prima" {% if filtro == 'materia_prima' %}selected{% endif %}>
+            Matéria-prima
+          </option>
+          <option value="forma_pagamento" {% if filtro == 'forma_pagamento' %}selected{% endif %}>
+            Forma de pagamento
+          </option>
+          <option value="peca" {% if filtro == 'peca' %}selected{% endif %}>
+            Peça
+          </option>
+        </select>
       </div>
-    {% endif %}
+
+      {# Sub-select: matéria-prima #}
+      <div class="filtro-grupo filtro-sub" id="sub-materia_prima"
+           {% if filtro != 'materia_prima' %}hidden{% endif %}>
+        <label class="filtro-label" for="sel-material">Material</label>
+        <select class="filtro-select" id="sel-material" name="material_id">
+          {% for m in materiais %}
+            <option value="{{ m.id }}" {% if material_id == m.id %}selected{% endif %}>
+              {{ m.nome }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Sub-select: forma de pagamento #}
+      <div class="filtro-grupo filtro-sub" id="sub-forma_pagamento"
+           {% if filtro != 'forma_pagamento' %}hidden{% endif %}>
+        <label class="filtro-label" for="sel-forma">Método</label>
+        <select class="filtro-select" id="sel-forma" name="forma">
+          {% if formas_disponiveis %}
+            {% for f in formas_disponiveis %}
+              <option value="{{ f }}" {% if forma == f %}selected{% endif %}>{{ f }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="">Nenhuma venda registrada</option>
+          {% endif %}
+        </select>
+      </div>
+
+      {# Sub-select: peça #}
+      <div class="filtro-grupo filtro-sub" id="sub-peca"
+           {% if filtro != 'peca' %}hidden{% endif %}>
+        <label class="filtro-label" for="sel-peca">Peça</label>
+        <select class="filtro-select" id="sel-peca" name="peca_id">
+          {% for p in pecas %}
+            <option value="{{ p.id }}" {% if peca_id == p.id %}selected{% endif %}>
+              {{ p.nome }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="filtro-acoes">
+        <button class="filtro-btn" type="submit">Filtrar</button>
+        {% if filtro %}
+          <a class="filtro-limpar" href="{{ url_for('relatorios.index') }}">Limpar filtro</a>
+        {% endif %}
+      </div>
+    </form>
   </section>
+
+  {# ================================================================
+     RESULTADO DO FILTRO ATIVO
+     ================================================================ #}
+
+  {% if dados_filtro %}
+
+    {# ---------- Filtro: Matéria-prima ---------- #}
+    {% if dados_filtro.tipo == 'materia_prima' %}
+      <section class="relatorio-secao filtro-resultado">
+        <h2 class="relatorio-secao__titulo">
+          Matéria-prima: {{ dados_filtro.material_nome }}
+          <small class="relatorio-badge">últimos {{ janela_dias }} dias</small>
+        </h2>
+
+        <div class="filtro-kpis">
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Custo gasto em produção</span>
+            <span class="filtro-kpi__valor">R$ {{ '%.2f'|format(dados_filtro.custo_gasto) }}</span>
+          </div>
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Itens vendidos (com este material)</span>
+            <span class="filtro-kpi__valor">{{ dados_filtro.total_qtd_vendida }} un</span>
+          </div>
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Receita gerada</span>
+            <span class="filtro-kpi__valor">R$ {{ '%.2f'|format(dados_filtro.total_receita) }}</span>
+          </div>
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Preço unitário atual</span>
+            <span class="filtro-kpi__valor">
+              R$ {{ '%.4f'|format(dados_filtro.material_valor_unitario) }} / {{ dados_filtro.material_unidade }}
+            </span>
+          </div>
+        </div>
+
+        <h3 class="filtro-subtitulo">Peças que utilizam este material</h3>
+        {% if not dados_filtro.pecas_que_usam %}
+          <p class="relatorio-secao__vazio">Nenhuma peça cadastrada com este material.</p>
+        {% else %}
+          <ul class="filtro-lista-pecas">
+            {% for p in dados_filtro.pecas_que_usam %}
+              <li>
+                <strong>{{ p.nome }}</strong>
+                <span class="filtro-detalhe">
+                  {{ p.qtd_por_peca }} {{ dados_filtro.material_unidade }} / unidade produzida
+                </span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+
+        {% if dados_filtro.vendas_por_peca %}
+          <h3 class="filtro-subtitulo">Vendas por peça no período</h3>
+          <div class="tabela-wrap">
+            <table class="tabela-pecas">
+              <thead>
+                <tr>
+                  <th>Peça</th>
+                  <th class="num">Vendas</th>
+                  <th class="num">Qtd vendida</th>
+                  <th class="num">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for v in dados_filtro.vendas_por_peca %}
+                  <tr>
+                    <td>{{ v.peca_nome }}</td>
+                    <td class="num">{{ v.total_vendas }}</td>
+                    <td class="num">{{ v.total_qtd }} un</td>
+                    <td class="num">R$ {{ '%.2f'|format(v.total_fat) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    {# ---------- Filtro: Forma de pagamento ---------- #}
+    {% if dados_filtro.tipo == 'forma_pagamento' %}
+      <section class="relatorio-secao filtro-resultado">
+        <h2 class="relatorio-secao__titulo">
+          Pagamento via: {{ dados_filtro.forma }}
+          <small class="relatorio-badge">últimos {{ janela_dias }} dias</small>
+        </h2>
+
+        <div class="filtro-kpis">
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Total recebido</span>
+            <span class="filtro-kpi__valor">R$ {{ '%.2f'|format(dados_filtro.total_recebido) }}</span>
+          </div>
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Quantidade de vendas</span>
+            <span class="filtro-kpi__valor">{{ dados_filtro.qtd_vendas }}</span>
+          </div>
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Itens vendidos</span>
+            <span class="filtro-kpi__valor">{{ dados_filtro.total_itens }} un</span>
+          </div>
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Ticket médio</span>
+            <span class="filtro-kpi__valor">R$ {{ '%.2f'|format(dados_filtro.media_por_venda) }}</span>
+          </div>
+        </div>
+
+        {% if not dados_filtro.pecas %}
+          <p class="relatorio-secao__vazio">Nenhuma venda registrada com este método no período.</p>
+        {% else %}
+          <h3 class="filtro-subtitulo">Peças vendidas por este método</h3>
+          <div class="tabela-wrap">
+            <table class="tabela-pecas">
+              <thead>
+                <tr>
+                  <th>Peça</th>
+                  <th class="num">Vendas</th>
+                  <th class="num">Qtd vendida</th>
+                  <th class="num">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in dados_filtro.pecas %}
+                  <tr>
+                    <td>{{ p.peca_nome }}</td>
+                    <td class="num">{{ p.total_vendas }}</td>
+                    <td class="num">{{ p.total_qtd }} un</td>
+                    <td class="num">R$ {{ '%.2f'|format(p.total_fat) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    {# ---------- Filtro: Peça ---------- #}
+    {% if dados_filtro.tipo == 'peca' %}
+      <section class="relatorio-secao filtro-resultado">
+        <h2 class="relatorio-secao__titulo">
+          Peça: {{ dados_filtro.peca_nome }}
+          <small class="relatorio-badge">últimos {{ janela_dias }} dias</small>
+        </h2>
+
+        <div class="filtro-kpis">
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Produzidas no período</span>
+            <span class="filtro-kpi__valor">{{ dados_filtro.total_produzido }} un</span>
+          </div>
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Investido em materiais</span>
+            <span class="filtro-kpi__valor">R$ {{ '%.2f'|format(dados_filtro.custo_investido) }}</span>
+          </div>
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Vendidas no período</span>
+            <span class="filtro-kpi__valor">{{ dados_filtro.total_qtd_vendida }} un</span>
+          </div>
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Faturamento gerado</span>
+            <span class="filtro-kpi__valor">R$ {{ '%.2f'|format(dados_filtro.total_faturamento) }}</span>
+          </div>
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Estoque atual</span>
+            <span class="filtro-kpi__valor">{{ dados_filtro.peca_estoque }} un</span>
+          </div>
+          <div class="filtro-kpi">
+            <span class="filtro-kpi__label">Custo de produção atual</span>
+            <span class="filtro-kpi__valor">R$ {{ '%.2f'|format(dados_filtro.custo_producao_atual) }}</span>
+          </div>
+        </div>
+
+        {% if dados_filtro.materiais %}
+          <h3 class="filtro-subtitulo">Composição de materiais</h3>
+          <div class="tabela-wrap">
+            <table class="tabela-pecas">
+              <thead>
+                <tr>
+                  <th>Material</th>
+                  <th class="num">Qtd / unidade</th>
+                  <th class="num">Preço unitário</th>
+                  <th class="num">Custo parcial</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for m in dados_filtro.materiais %}
+                  <tr>
+                    <td>{{ m.nome }}</td>
+                    <td class="num">{{ m.quantidade }} {{ m.unidade }}</td>
+                    <td class="num">R$ {{ '%.4f'|format(m.valor_unitario) }}</td>
+                    <td class="num">R$ {{ '%.4f'|format(m.custo_parcial) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="relatorio-secao__vazio">Nenhum material cadastrado para esta peça.</p>
+        {% endif %}
+
+        {% if dados_filtro.vendas_por_forma %}
+          <h3 class="filtro-subtitulo">Receita por forma de pagamento</h3>
+          <ul class="pagamentos">
+            {% set fat = dados_filtro.total_faturamento %}
+            {% for f in dados_filtro.vendas_por_forma %}
+              <li class="pagamento">
+                <div class="pagamento__cabecalho">
+                  <span class="pagamento__nome">{{ f.forma }}</span>
+                  <span class="pagamento__valor">
+                    R$ {{ '%.2f'|format(f.total) }}
+                    <small>
+                      ({{ f.qtd }} un em {{ f.vendas }} venda{{ 's' if f.vendas != 1 }})
+                    </small>
+                  </span>
+                </div>
+                {% if fat > 0 %}
+                  <meter class="pagamento__barra"
+                         min="0" max="100" value="{{ '%.2f'|format(f.total / fat * 100) }}"
+                         aria-label="{{ f.forma }}">
+                    {{ '%.1f'|format(f.total / fat * 100) }}%
+                  </meter>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="relatorio-secao__vazio">Nenhuma venda registrada para esta peça no período.</p>
+        {% endif %}
+      </section>
+    {% endif %}
+
+  {% else %}
+
+    {# ================================================================
+       VISÃO GERAL (sem filtro ativo)
+       ================================================================ #}
+
+    {# ---------- Top 5 peças mais lucrativas ---------- #}
+    <section class="relatorio-secao">
+      <h2 class="relatorio-secao__titulo">Peças mais lucrativas</h2>
+      {% if not top_pecas %}
+        <p class="relatorio-secao__vazio">Nenhuma venda no período.</p>
+      {% else %}
+        <ol class="ranking">
+          {% for p in top_pecas %}
+            <li class="ranking__item">
+              <span class="ranking__nome">{{ p.peca_nome }}</span>
+              <span class="ranking__info">
+                {{ p.quantidade }} un • R$ {{ '%.2f'|format(p.faturamento) }} fat.
+              </span>
+              <span class="ranking__lucro">
+                Lucro: R$ {{ '%.2f'|format(p.lucro) }}
+                <small>({{ '%.1f'|format(p.margem) }}%)</small>
+              </span>
+            </li>
+          {% endfor %}
+        </ol>
+      {% endif %}
+    </section>
+
+    {# ---------- Distribuição por forma de pagamento ---------- #}
+    <section class="relatorio-secao">
+      <h2 class="relatorio-secao__titulo">Formas de pagamento</h2>
+      {% if not formas_pagamento %}
+        <p class="relatorio-secao__vazio">Nenhuma venda no período.</p>
+      {% else %}
+        <ul class="pagamentos">
+          {% for f in formas_pagamento %}
+            <li class="pagamento">
+              <div class="pagamento__cabecalho">
+                <span class="pagamento__nome">{{ f.forma }}</span>
+                <span class="pagamento__valor">
+                  R$ {{ '%.2f'|format(f.valor) }}
+                  <small>({{ '%.1f'|format(f.pct) }}%)</small>
+                </span>
+              </div>
+              <meter class="pagamento__barra"
+                     min="0" max="100" value="{{ '%.2f'|format(f.pct) }}"
+                     aria-label="Porcentagem do faturamento via {{ f.forma }}">
+                {{ '%.1f'|format(f.pct) }}%
+              </meter>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </section>
+
+    {# ---------- Tabela detalhada por peça ---------- #}
+    <section class="relatorio-secao">
+      <h2 class="relatorio-secao__titulo">Detalhamento por peça</h2>
+      {% if not pecas_detalhe %}
+        <p class="relatorio-secao__vazio">Nenhuma venda no período.</p>
+      {% else %}
+        <div class="tabela-wrap">
+          <table class="tabela-pecas">
+            <thead>
+              <tr>
+                <th>Peça</th>
+                <th class="num">Vendas</th>
+                <th class="num">Qtd</th>
+                <th class="num">Faturamento</th>
+                <th class="num">Custo</th>
+                <th class="num">Lucro</th>
+                <th class="num">Margem</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in pecas_detalhe %}
+                <tr>
+                  <td>{{ p.peca_nome }}</td>
+                  <td class="num">{{ p.vendas }}</td>
+                  <td class="num">{{ p.quantidade }}</td>
+                  <td class="num">R$ {{ '%.2f'|format(p.faturamento) }}</td>
+                  <td class="num">R$ {{ '%.2f'|format(p.custo) }}</td>
+                  <td class="num">R$ {{ '%.2f'|format(p.lucro) }}</td>
+                  <td class="num">{{ '%.1f'|format(p.margem) }}%</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </section>
+
+  {% endif %}
 </main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var tipoSel = document.getElementById('filtro-tipo');
+    var subs = document.querySelectorAll('.filtro-sub');
+
+    function mostrarSub() {
+      subs.forEach(function (el) {
+        el.hidden = el.id !== 'sub-' + tipoSel.value;
+      });
+    }
+
+    tipoSel.addEventListener('change', mostrarSub);
+  })();
+</script>
 {% endblock %}
