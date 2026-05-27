@@ -52,6 +52,9 @@ def validar_form(form_data, materiais_disponiveis):
         elif qtd > 0:
             materiais_selecionados[m.id] = qtd
 
+    if materiais_disponiveis and not materiais_selecionados:
+        erros["materiais"] = "Selecione ao menos um material para a peça."
+
     valores = {
         "nome": nome,
         "preco_venda": preco_venda or 0.0,

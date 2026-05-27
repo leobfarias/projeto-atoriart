@@ -79,8 +79,11 @@
     </div>
 
     {# ---------- Seção de materiais ---------- #}
-    <div class="form-secao">
+    <div class="form-secao {% if erros.materiais %}form-secao--erro{% endif %}">
       <h2 class="form-secao__titulo">Materiais usados nesta peça</h2>
+      {% if erros.materiais %}
+        <span class="campo__erro">{{ erros.materiais }}</span>
+      {% endif %}
       <p class="form-secao__ajuda">
         Informe a quantidade de cada material que esta peça consome.
         Deixe em branco os que não usa. O <strong>custo de produção</strong>

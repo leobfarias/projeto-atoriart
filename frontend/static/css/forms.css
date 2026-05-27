@@ -102,6 +102,10 @@
   margin-bottom: 8px;
 }
 
+.form-secao--erro {
+  border-top-color: var(--color-danger);
+}
+
 .form-secao__ajuda {
   font-size: 0.85rem;
   color: var(--color-muted);
