@@ -201,8 +201,8 @@ do banco:
 | Módulo         | Rota             | O que faz                                                |
 |----------------|------------------|----------------------------------------------------------|
 | Catálogo       | `/catalogo/`     | Vitrine das peças com estoque > 0 (somente leitura).     |
-| Matéria-prima  | `/materiais/`    | CRUD de insumos com alerta de estoque baixo.             |
-| Produção       | `/producao/`     | Produções e cadastro de peças (custo vem dos materiais). |
+| Matéria-prima  | `/materiais/`    | CRUD de insumos (cadastro pelo preço total pago) com alerta de estoque baixo. |
+| Produção       | `/producao/`     | Produções e cadastro de peças; produção **debita os materiais** consumidos. |
 | Vendas         | `/vendas/`       | Registro de vendas com baixa automática de estoque.      |
 | Despesas       | `/despesas/`     | Registro de custos do negócio (alimenta a receita líquida).|
 | Relatórios     | `/relatorios/`   | Consolidação das vendas dos últimos 30 dias.             |

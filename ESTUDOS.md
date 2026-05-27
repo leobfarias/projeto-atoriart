@@ -1363,6 +1363,13 @@ nos que precisam de reposição.
 **CRUD:** criar/editar/apagar com validação inline. Apagar material
 que está em uso por uma peça é bloqueado com mensagem amigável.
 
+**Cadastro por preço total:** o usuário **não digita** o preço por
+unidade — informa o **total pago pelo lote** + a quantidade comprada.
+O `valor_unitario` é calculado silenciosamente (`total / quantidade`)
+e é o que alimenta `vw_peca_custo`. A listagem mostra "R$ X investidos"
+(soma atual do estoque) no lugar de "R$ X / unidade". Ver
+[ADR-012](#adr-012--produção-consome-matéria-prima--cadastro-por-preço-total).
+
 ### 16.5 Produção — `/producao/` (CRUD: criar / apagar)
 
 **Arquivos:**
@@ -1377,8 +1384,14 @@ Lista de produções (data, peça, quantidade, custo) com observação
 opcional como nota italicizada. Borda lateral laranja em cada registro.
 
 **CRUD (sem editar — é histórico):** criar produção **soma** a quantidade
-em `peca.quantidade_estoque` na mesma transação. Apagar **subtrai** e
-**bloqueia** se ficaria negativo (peças já foram vendidas).
+em `peca.quantidade_estoque` E **debita os materiais consumidos** da
+receita (`qtd_producao × material_qty`), tudo na mesma transação. Antes
+de gravar, o service checa se cada material tem estoque suficiente —
+bloqueia com erro amigável se faltar. Apagar **subtrai da peça** e
+**bloqueia** se o estoque ficaria negativo (peças já foram vendidas).
+A matéria-prima **não retorna** ao estoque ao apagar — já foi consumida
+fisicamente; o efeito é assimétrico em relação a criar, de propósito.
+Ver [ADR-012](#adr-012--produção-consome-matéria-prima--cadastro-por-preço-total).
 
 **Cadastro de peça (`/producao/pecas/nova` e `.../editar`):** a peça
 nasce aqui. O formulário pede nome, **preço de venda sugerido**, estoque
@@ -1845,9 +1858,10 @@ Bloqueia operações que deixariam estoque negativo.
 **Motivo:** estoque sempre consistente sem precisar de rotina externa
 de recálculo. SQLite garante atomicidade nativamente: ou os dois SQLs
 gravam, ou nenhum grava.
-**Trade-off:** produção não consome `material.quantidade_estoque` —
-materiais ainda são repostos manualmente. Pode entrar como etapa
-futura.
+**Trade-off original:** produção não consumia
+`material.quantidade_estoque` na primeira versão — só mexia na peça.
+**Resolvido em [ADR-012](#adr-012--produção-consome-matéria-prima--cadastro-por-preço-total):**
+produção agora debita os materiais consumidos na mesma transação.
 
 ### ADR-009 — Módulo de Despesas e receita líquida real
 `despesa` é uma tabela **sem chave estrangeira** e **sem efeito no
@@ -1867,6 +1881,26 @@ O `custo_producao` da peça não é coluna nem é digitado: é a soma
 ele velho quando o preço de um material mudasse. A view é fonte única
 da fórmula; `peca`, `venda` e `producao` fazem `LEFT JOIN` nela. Mesmo
 princípio das `@property` dos models: valor derivado se calcula.
+
+### ADR-012 — Produção consome matéria-prima + cadastro por preço total
+Estende o ADR-007: criar produção debita os materiais consumidos
+(`qtd × material_qty`) no mesmo `commit()` do INSERT da produção e do
+UPDATE da peça. O `producao_service` checa o estoque dos materiais
+antes de gravar e bloqueia com erro amigável se faltar.
+**Apagar é assimétrico:** retira as peças do estoque mas **não devolve
+a matéria-prima** — material já foi fisicamente consumido, então o
+registro some mas o consumo permanece.
+E o **cadastro de matéria-prima** agora recebe o **preço total pago**
++ a quantidade — o `valor_unitario` é calculado silenciosamente
+(`total / quantidade`) e nunca aparece na UI. A listagem mostra o
+"investido" (`unit × estoque`) no lugar do preço por unidade.
+**Motivo:** o usuário pensa em totais ("gastei R$ X pelo lote"), não em
+preço por unidade. E debitar matéria-prima na produção é o que fecha o
+ciclo material → peça → venda de verdade. A assimetria do apagar
+combina com a física: insumo gasto não volta.
+**Trade-off:** corrigir uma produção lançada errada requer ajustar
+o estoque do material à mão antes de relançar — apagar não devolve
+o insumo. Aceitável porque combina com a realidade.
 
 ---
 

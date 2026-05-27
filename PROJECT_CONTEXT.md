@@ -344,11 +344,31 @@ python -c "from werkzeug.security import generate_password_hash; print(generate_
 - Extensões aceitas: `jpg`, `jpeg`, `png`, `gif`, `webp`.
 - Ver [ADR-011](#adr-011--upload-de-fotos-de-produto).
 
+### Etapa 11.3 ✅ — Consumo de matéria-prima + cadastro por preço total
+- **Consumo automático:** registrar produção agora **debita** os materiais
+  da receita da peça (`quantidade_producao × material_qty`) na mesma
+  transação do INSERT da produção e do UPDATE do estoque da peça.
+  Estende o [ADR-007](#adr-007--efeitos-colaterais-no-estoque-produção-e-venda)
+  para a tabela `material` — resolve o trade-off original dele.
+- **Apagar produção é assimétrico:** retira as peças do estoque mas
+  **não devolve a matéria-prima** — material já foi fisicamente
+  consumido, não dá pra "des-produzir".
+- **Bloqueio antecipado:** `producao_service.criar` checa se cada material
+  tem estoque suficiente antes de gravar; se algum falta, retorna erro
+  amigável listando os faltantes (ex.: "precisa 8 un, tem 6").
+- **Cadastro por preço total:** o form de matéria-prima passou a receber
+  o **preço total pago pelo lote** + a quantidade comprada. O
+  `valor_unitario` é calculado silenciosamente (`total / quantidade`) e
+  é o que continua alimentando a view `vw_peca_custo`. O preço por
+  unidade não aparece em UI nenhuma — só o "investido" (`unit × estoque`).
+- Property `valor_estoque` adicionada ao model `Material`; listagem de
+  matéria-prima mostra "R$ X investidos" no lugar de "R$ X / unidade".
+- Ver [ADR-012](#adr-012--produção-consome-matéria-prima--cadastro-por-preço-total).
+
 **Não entregue (intencionalmente):**
 - Trocar senha pela interface (exige mover credencial p/ o DB).
 - Resetar banco pela interface (atualmente: `python database/init_db.py`).
 - Filtro de período nas listagens / relatório (atualmente fixo em 30d).
-- Baixa automática de matéria-prima ao registrar produção.
 
 ---
 
@@ -369,6 +389,7 @@ python -c "from werkzeug.security import generate_password_hash; print(generate_
 | 11    | Despesas                      | Tabela `despesa` + página `/despesas/` + receita líquida real ✅ |
 | 11.1  | Custo automático da peça      | Custo derivado dos materiais (view) + preço de venda sugerido ✅ |
 | 11.2  | Foto de produto               | Upload de foto opcional por peça; exibida no Catálogo e Produção ✅ |
+| 11.3  | Consumo de matéria-prima      | Produção debita materiais + cadastro por preço total ✅ |
 | 12    | Filtro de período             | Seletor 7d / 30d / 90d / custom em vendas/relatórios |
 | 13    | Trocar senha pela interface   | Migrar credencial do `.env` p/ tabela `admin`        |
 
@@ -446,9 +467,9 @@ recálculo". Como ambos os SQLs (INSERT/DELETE da movimentação +
 UPDATE do estoque) rodam dentro do mesmo `commit()`, ou tudo grava
 ou nada grava — atomicidade nativa do SQLite.
 
-**Trade-off conhecido:** produção NÃO consome `material.quantidade_estoque`
-ainda (só mexe na peça). A reposição/baixa de materiais é manual.
-Pode entrar como Etapa futura.
+**Trade-off original:** produção não consumia `material.quantidade_estoque`
+nesta primeira versão — só mexia na peça. **Resolvido em [ADR-012](#adr-012--produção-consome-matéria-prima--cadastro-por-preço-total):**
+produção agora também debita os materiais consumidos na mesma transação.
 
 ### ADR-008 — Catálogo vira vitrine; peça nasce na Produção
 **Decisão:** o Catálogo (`/catalogo/`) é apenas leitura e filtra por
@@ -526,6 +547,44 @@ atual. Mesmo espírito das `@property` dos models (`lucro_bruto`,
 *atual* dos materiais, não o da época da venda. Aceitável neste estágio
 — o sistema já se comportava assim quando o custo era coluna lida por
 JOIN. Um snapshot histórico por venda pode entrar no futuro.
+
+### ADR-012 — Produção consome matéria-prima + cadastro por preço total
+**Decisão (parte 1):** estender o [ADR-007](#adr-007--efeitos-colaterais-no-estoque-produção-e-venda):
+criar produção também debita `material.quantidade_estoque`, na mesma
+transação SQLite do INSERT da produção e do UPDATE do estoque da peça.
+`producao_service.criar` checa o estoque de cada material **antes** de
+gravar e bloqueia com erro amigável se faltar.
+
+**Apagar é assimétrico em relação a criar:** retira as peças do estoque
+mas **não devolve a matéria-prima**. Razão: o material foi
+fisicamente consumido — não dá pra "des-produzir" e recuperar insumo.
+Excluir o registro de produção é só remover a linha; o consumo já
+aconteceu no mundo real. (Quem está corrigindo um erro de lançamento
+ajusta o estoque do material à mão.)
+
+**Decisão (parte 2):** o usuário cadastra/edita matéria-prima informando
+o **preço total pago pelo lote** + a quantidade comprada. O
+`valor_unitario` (coluna que continua existindo no banco e alimenta a
+view `vw_peca_custo`) é derivado silenciosamente como `total / quantidade`
+e nunca aparece na UI. A listagem de materiais mostra o "investido"
+atual (`valor_unitario × quantidade_estoque`), não o preço por unidade.
+
+**Motivo:** o usuário raciocina em "gastei R$ X pelo lote" — pedir o
+preço por unidade é tradução mental desnecessária. E o controle de
+estoque de matéria-prima é o que torna a integração peça↔produção↔venda
+fechada de verdade (resolve o trade-off do ADR-007).
+
+**Receita de consumo:** o débito em cada material usa a receita ATUAL
+da peça (`peca_material`) no momento da produção. Helper privado
+`_debitar_materiais(db, peca_id, qtd_producao)` subtrai
+`qtd_producao × material_qty` de cada linha.
+
+**Trade-off conhecido:** corrigir uma produção lançada errada vira um
+processo manual: apagar a produção devolve as peças mas NÃO devolve a
+matéria-prima. Para "refazer" sem inflar o consumo, o usuário precisa
+ajustar o estoque do material na mão (editando o material) antes de
+relançar a produção. Aceitável porque combina com a realidade física —
+a alternativa simétrica criava bug pior em qualquer edição da receita.
 
 ---
 

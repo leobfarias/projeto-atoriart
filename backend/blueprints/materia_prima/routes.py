@@ -67,11 +67,13 @@ def editar(material_id):
         flash("Material atualizado.", "success")
         return redirect(url_for("materia_prima.index"))
 
-    # GET — pre-preenche com os valores atuais
+    # GET — pre-preenche com os valores atuais. O preço total mostrado é
+    # o valor investido AGORA (valor_unitario × estoque atual). Não é o
+    # original da compra — não armazenamos esse valor, só o unitário.
     valores = {
         "nome": material.nome,
         "unidade": material.unidade,
-        "valor_unitario": material.valor_unitario,
+        "preco_total": f"{material.valor_estoque:.2f}",
         "quantidade_estoque": material.quantidade_estoque,
         "estoque_minimo": material.estoque_minimo,
     }

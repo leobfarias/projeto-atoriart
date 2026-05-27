@@ -6,6 +6,12 @@ Funções:
     criar(form_data)                   -> (erros, material_id)
     atualizar(material_id, form_data)  -> (erros, None)
     apagar(material_id)                -> (erro_msg | None)
+
+O usuário cadastra/edita informando o **preço total pago** pelo lote
+(`preco_total`) + a quantidade comprada — o valor unitário é calculado
+silenciosamente (`preco_total / quantidade_estoque`) e gravado em
+`material.valor_unitario`. É esse `valor_unitario` que alimenta a view
+`vw_peca_custo` e, portanto, o custo de produção das peças.
 """
 from backend.repositories import material_repository
 
@@ -22,9 +28,7 @@ def dados_materia_prima():
         "total_cadastrados": len(materiais),
         "total_ok": len(materiais) - len(materiais_alerta),
         "total_alerta": len(materiais_alerta),
-        "valor_investido": sum(
-            m.quantidade_estoque * m.valor_unitario for m in materiais
-        ),
+        "valor_investido": sum(m.valor_estoque for m in materiais),
     }
 
 
@@ -34,8 +38,9 @@ def validar_form(form_data):
     """Lê o request.form e devolve (erros, valores_normalizados).
 
     `erros` é um dict campo→mensagem. Vazio = válido.
-    `valores` é um dict com os campos já limpos (strings .strip(),
-    números convertidos), pronto pra ir pro repositório.
+    `valores` traz os campos já limpos. Note que o usuário NÃO informa
+    `valor_unitario`: ele é derivado de `preco_total / quantidade_estoque`
+    e entregue pronto ao repositório.
     """
     erros = {}
 
@@ -51,22 +56,30 @@ def validar_form(form_data):
     elif len(unidade) > 10:
         erros["unidade"] = "Unidade muito longa (máx 10 caracteres)."
 
-    valor_unitario = _numero(form_data.get("valor_unitario"))
-    if valor_unitario is None or valor_unitario < 0:
-        erros["valor_unitario"] = "Valor unitário deve ser ≥ 0."
+    preco_total = _numero(form_data.get("preco_total"))
+    if preco_total is None or preco_total <= 0:
+        erros["preco_total"] = "Preço total pago deve ser maior que zero."
 
+    # Quantidade > 0 é obrigatória — sem ela não dá pra calcular o
+    # valor unitário (divisão por zero).
     quantidade_estoque = _numero(form_data.get("quantidade_estoque"))
-    if quantidade_estoque is None or quantidade_estoque < 0:
-        erros["quantidade_estoque"] = "Quantidade em estoque deve ser ≥ 0."
+    if quantidade_estoque is None or quantidade_estoque <= 0:
+        erros["quantidade_estoque"] = "Quantidade em estoque deve ser maior que zero."
 
     estoque_minimo = _numero(form_data.get("estoque_minimo"))
     if estoque_minimo is None or estoque_minimo < 0:
         erros["estoque_minimo"] = "Estoque mínimo deve ser ≥ 0."
 
+    # Cálculo silencioso do valor unitário (só faz sentido se ambos válidos).
+    if preco_total and quantidade_estoque:
+        valor_unitario = preco_total / quantidade_estoque
+    else:
+        valor_unitario = 0.0
+
     valores = {
         "nome": nome,
         "unidade": unidade,
-        "valor_unitario": valor_unitario or 0.0,
+        "valor_unitario": valor_unitario,
         "quantidade_estoque": quantidade_estoque or 0.0,
         "estoque_minimo": estoque_minimo or 0.0,
     }

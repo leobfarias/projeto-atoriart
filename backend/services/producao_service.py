@@ -6,11 +6,16 @@ Funções:
     criar(form_data)                  -> (erros, producao_id)
     apagar(producao_id)               -> (erro_msg | None)
 
-Regras de estoque (centrais):
-- Criar produção SOMA `quantidade` em `peca.quantidade_estoque`.
-- Apagar produção SUBTRAI `quantidade` de `peca.quantidade_estoque`.
-  Se isso levaria o estoque a ficar NEGATIVO (porque algumas peças
-  já foram vendidas), o apagar é bloqueado com erro amigável.
+Regras de estoque (centrais — ADR-007 estendido pelo ADR-012):
+- **Criar produção** SOMA `quantidade` em `peca.quantidade_estoque` E
+  SUBTRAI dos materiais da receita (qty × material_qty). Antes de
+  gravar, este service confere se cada material tem estoque
+  suficiente — bloqueia se não tiver.
+- **Apagar produção** SUBTRAI `quantidade` de `peca.quantidade_estoque`.
+  Matéria-prima **não retorna ao estoque** — já foi consumida
+  fisicamente; o efeito é assimétrico em relação a criar, de propósito.
+  Bloqueada se levaria o estoque da peça a ficar negativo (porque
+  algumas peças já foram vendidas).
 """
 from collections import Counter
 from datetime import date, timedelta
@@ -99,8 +104,36 @@ def criar(form_data):
     erros, v = validar_form(form_data, pecas)
     if erros:
         return erros, None
+
+    # Confere se a matéria-prima da peça aguenta produzir essa quantidade.
+    peca = peca_repository.get_peca(v["peca_id"])
+    erro_materiais = _verificar_estoque_materiais(peca, v["quantidade"])
+    if erro_materiais:
+        return {"quantidade": erro_materiais}, None
+
     novo_id = producao_repository.criar(**v)
     return {}, novo_id
+
+
+def _verificar_estoque_materiais(peca, quantidade_producao):
+    """Para cada material da receita da peça, vê se há estoque para produzir.
+
+    Retorna None se OK; mensagem amigável listando os faltantes senão.
+    """
+    if peca is None:
+        return None
+    faltando = []
+    for im in peca.materiais:
+        necessario = im.quantidade * quantidade_producao
+        if im.material.quantidade_estoque < necessario:
+            faltando.append(
+                f"{im.material.nome} "
+                f"(precisa {necessario:g} {im.material.unidade}, "
+                f"tem {im.material.quantidade_estoque:g})"
+            )
+    if not faltando:
+        return None
+    return "Matéria-prima insuficiente: " + "; ".join(faltando) + "."
 
 
 def apagar(producao_id):

@@ -99,7 +99,7 @@
             <div class="materiais-form__item">
               <span class="materiais-form__nome">
                 {{ m.nome }}
-                <small>(R$ {{ '%.2f'|format(m.valor_unitario) }} / {{ m.unidade }})</small>
+                <small>({{ m.unidade }})</small>
               </span>
               <div class="materiais-form__qtd-wrap">
                 <input class="materiais-form__qtd-input"

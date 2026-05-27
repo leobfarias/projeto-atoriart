@@ -49,14 +49,18 @@
         {% if erros.unidade %}<span class="campo__erro">{{ erros.unidade }}</span>{% endif %}
       </div>
 
-      <div class="campo {% if erros.valor_unitario %}campo--erro{% endif %}">
-        <label class="campo__label" for="valor_unitario">
-          Valor unitário <span class="campo__label-extra">(R$)</span>
+      <div class="campo {% if erros.preco_total %}campo--erro{% endif %}">
+        <label class="campo__label" for="preco_total">
+          Preço total pago <span class="campo__label-extra">(R$ pelo lote)</span>
         </label>
         <input class="campo__input" type="number" step="0.01" min="0"
-               name="valor_unitario" id="valor_unitario"
-               value="{{ valores.valor_unitario|default('') }}" required />
-        {% if erros.valor_unitario %}<span class="campo__erro">{{ erros.valor_unitario }}</span>{% endif %}
+               name="preco_total" id="preco_total"
+               value="{{ valores.preco_total|default('') }}" required />
+        {% if erros.preco_total %}<span class="campo__erro">{{ erros.preco_total }}</span>{% endif %}
+        <small class="campo__ajuda">
+          O custo por unidade é calculado a partir deste valor e da quantidade
+          em estoque — e é o que alimenta o custo de produção das peças.
+        </small>
       </div>
     </div>
 

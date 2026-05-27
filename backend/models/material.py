@@ -19,3 +19,8 @@ class Material:
     def em_alerta(self) -> bool:
         """True quando o estoque atual está abaixo do mínimo configurado."""
         return self.quantidade_estoque < self.estoque_minimo
+
+    @property
+    def valor_estoque(self) -> float:
+        """Valor atual investido neste material (valor_unitario × estoque)."""
+        return self.valor_unitario * self.quantidade_estoque

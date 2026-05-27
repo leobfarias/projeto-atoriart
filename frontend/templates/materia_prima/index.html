@@ -70,7 +70,7 @@
               <div class="material__info">
                 <strong class="material__nome">{{ m.nome }}</strong>
                 <span class="material__valores">
-                  R$ {{ '%.2f'|format(m.valor_unitario) }} / {{ m.unidade }}
+                  R$ {{ '%.2f'|format(m.valor_estoque) }} investidos
                   • {{ '%g'|format(m.quantidade_estoque) }} {{ m.unidade }} em estoque
                   • mínimo {{ '%g'|format(m.estoque_minimo) }} {{ m.unidade }}
                 </span>
