@@ -3,11 +3,16 @@
 Contrato público:
     list_producoes(desde=None)        -> list[Producao]
     get_producao(producao_id)         -> Producao | None
+    custo_total_investido()           -> float
+        Soma histórica de (quantidade × custo_unitario) de TODAS as
+        produções. Imune a vendas e a apagamentos de produção: usa o
+        snapshot gravado no momento da fabricação. (ADR-013)
     criar(peca_id, quantidade,
           data, observacao)           -> int
         Insere a produção, SOMA a quantidade no estoque da peça E
         DEBITA os materiais consumidos (qty × material_qty), tudo
-        numa única transação SQLite.
+        numa única transação SQLite. Lê o custo atual de vw_peca_custo
+        e grava em `custo_unitario` como snapshot imutável.
     apagar(producao_id, peca_id,
            quantidade)                -> None
         Apaga a produção e SUBTRAI a quantidade do estoque da peça.
@@ -24,7 +29,7 @@ from backend.models.producao import Producao
 def list_producoes(desde=None):
     db = get_db()
     sql = (
-        "SELECT p.id, p.peca_id, p.quantidade, p.data, p.observacao, "
+        "SELECT p.id, p.peca_id, p.quantidade, p.custo_unitario, p.data, p.observacao, "
         "       pe.nome AS peca_nome, "
         "       COALESCE(vpc.custo_producao, 0) AS peca_custo "
         "FROM producao p "
@@ -44,7 +49,7 @@ def list_producoes(desde=None):
 def get_producao(producao_id):
     db = get_db()
     r = db.execute(
-        "SELECT p.id, p.peca_id, p.quantidade, p.data, p.observacao, "
+        "SELECT p.id, p.peca_id, p.quantidade, p.custo_unitario, p.data, p.observacao, "
         "       pe.nome AS peca_nome, "
         "       COALESCE(vpc.custo_producao, 0) AS peca_custo "
         "FROM producao p "
@@ -56,14 +61,33 @@ def get_producao(producao_id):
     return _row_to_producao(r) if r is not None else None
 
 
+def custo_total_investido():
+    """Soma histórica de (quantidade × custo_unitario) de todas as produções.
+
+    Usa o snapshot gravado no momento da fabricação — não é afetado por
+    vendas, apagamentos de produção ou mudanças nos preços dos materiais.
+    """
+    db = get_db()
+    r = db.execute(
+        "SELECT COALESCE(SUM(quantidade * custo_unitario), 0) FROM producao"
+    ).fetchone()
+    return r[0]
+
+
 # ---------- Escrita (com efeito no estoque) ----------
 
 def criar(peca_id, quantidade, data, observacao):
     db = get_db()
+    custo_row = db.execute(
+        "SELECT COALESCE(custo_producao, 0) FROM vw_peca_custo WHERE peca_id = ?",
+        (peca_id,),
+    ).fetchone()
+    custo_unitario = custo_row[0] if custo_row else 0.0
+
     cursor = db.execute(
-        "INSERT INTO producao (peca_id, quantidade, data, observacao) "
-        "VALUES (?, ?, ?, ?)",
-        (peca_id, quantidade, data, observacao),
+        "INSERT INTO producao (peca_id, quantidade, custo_unitario, data, observacao) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (peca_id, quantidade, custo_unitario, data, observacao),
     )
     db.execute(
         "UPDATE peca SET quantidade_estoque = quantidade_estoque + ? "
@@ -125,6 +149,7 @@ def _row_to_producao(r):
         peca_nome=r["peca_nome"],
         peca_custo=r["peca_custo"],
         quantidade=r["quantidade"],
+        custo_unitario=r["custo_unitario"],
         data=r["data"],
         observacao=r["observacao"],
     )

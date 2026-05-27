@@ -40,12 +40,17 @@ CREATE TABLE peca_material (
 );
 
 -- Registro de produção: cada linha = "no dia X, produzi N unidades da peça Y"
+-- `custo_unitario` é o snapshot do custo da peça no momento da produção,
+-- calculado a partir de vw_peca_custo e gravado imutavelmente. Permite
+-- calcular o custo histórico investido independentemente de vendas ou
+-- de mudanças futuras nos preços dos materiais. (ADR-013)
 CREATE TABLE producao (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    peca_id     INTEGER NOT NULL,
-    quantidade  INTEGER NOT NULL,
-    data        TEXT    NOT NULL,           -- 'YYYY-MM-DD'
-    observacao  TEXT,                       -- opcional
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    peca_id         INTEGER NOT NULL,
+    quantidade      INTEGER NOT NULL,
+    custo_unitario  REAL    NOT NULL DEFAULT 0,  -- snapshot: custo/unid no momento
+    data            TEXT    NOT NULL,            -- 'YYYY-MM-DD'
+    observacao      TEXT,                        -- opcional
     FOREIGN KEY (peca_id) REFERENCES peca(id) ON DELETE CASCADE
 );
 CREATE INDEX idx_producao_data ON producao(data);

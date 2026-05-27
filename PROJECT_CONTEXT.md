@@ -344,6 +344,25 @@ python -c "from werkzeug.security import generate_password_hash; print(generate_
 - Extensões aceitas: `jpg`, `jpeg`, `png`, `gif`, `webp`.
 - Ver [ADR-011](#adr-011--upload-de-fotos-de-produto).
 
+### Etapa 11.4 ✅ — Custo investido histórico (vitrine)
+
+**Problema corrigido:** o card "Custo investido" do Catálogo calculava
+`Σ custo_producao × quantidade_estoque`, então diminuía a cada venda —
+o custo desaparecia junto com o estoque vendido.
+
+**Solução (ADR-013):** a tabela `producao` ganhou a coluna
+`custo_unitario REAL NOT NULL DEFAULT 0`, que grava um **snapshot** do
+custo da peça (via `vw_peca_custo`) no momento exato do INSERT. O
+`custo_investido` do Catálogo passa a ser calculado por
+`producao_repository.custo_total_investido()` —
+`SELECT SUM(quantidade * custo_unitario) FROM producao` —
+valor que só cresce com novas produções e nunca diminui com vendas.
+
+**Migration automática:** `database/db.py._apply_migrations` detecta a
+ausência da coluna, aplica `ALTER TABLE producao ADD COLUMN custo_unitario`
+e faz backfill dos registros já existentes com o custo atual da view
+(melhor aproximação disponível para o histórico pré-migração).
+
 ### Etapa 11.3 ✅ — Consumo de matéria-prima + cadastro por preço total
 - **Consumo automático:** registrar produção agora **debita** os materiais
   da receita da peça (`quantidade_producao × material_qty`) na mesma
@@ -390,6 +409,7 @@ python -c "from werkzeug.security import generate_password_hash; print(generate_
 | 11.1  | Custo automático da peça      | Custo derivado dos materiais (view) + preço de venda sugerido ✅ |
 | 11.2  | Foto de produto               | Upload de foto opcional por peça; exibida no Catálogo e Produção ✅ |
 | 11.3  | Consumo de matéria-prima      | Produção debita materiais + cadastro por preço total ✅ |
+| 11.4  | Custo investido histórico     | Snapshot `custo_unitario` em `producao`; vitrine imune a vendas ✅ |
 | 12    | Filtro de período             | Seletor 7d / 30d / 90d / custom em vendas/relatórios |
 | 13    | Trocar senha pela interface   | Migrar credencial do `.env` p/ tabela `admin`        |
 
@@ -585,6 +605,44 @@ matéria-prima. Para "refazer" sem inflar o consumo, o usuário precisa
 ajustar o estoque do material na mão (editando o material) antes de
 relançar a produção. Aceitável porque combina com a realidade física —
 a alternativa simétrica criava bug pior em qualquer edição da receita.
+
+### ADR-013 — Snapshot de custo na produção para custo investido histórico
+
+**Problema:** o card "Custo investido" do Catálogo usava
+`Σ peca.custo_producao × peca.quantidade_estoque`. Como `quantidade_estoque`
+diminui a cada venda, o custo investido caía junto — como se o investimento
+em produção desaparecesse quando as peças eram vendidas.
+
+**Decisão:** adicionar a coluna `producao.custo_unitario REAL NOT NULL DEFAULT 0`,
+que armazena um **snapshot imutável** do custo da peça (lido de `vw_peca_custo`)
+no momento exato do INSERT da produção. O `custo_investido` do Catálogo passa a
+ser calculado por `producao_repository.custo_total_investido()`:
+
+```sql
+SELECT COALESCE(SUM(quantidade * custo_unitario), 0) FROM producao
+```
+
+**Por que snapshot e não recalcular da view?** A `vw_peca_custo` reflete os
+preços *atuais* dos materiais. Se um material mudar de preço, o custo histórico
+de produções passadas seria alterado retroativamente — comportamento incorreto.
+O snapshot congela o custo no momento real da fabricação.
+
+**Efeito em cada operação:**
+- Criar produção: lê `vw_peca_custo` dentro da mesma transação e grava o snapshot.
+  `custo_total_investido()` sobe.
+- Apagar produção: o registro e seu snapshot são deletados. `custo_total_investido()`
+  desce (correto: a produção não ocorreu de fato).
+- Vender peça: não toca a tabela `producao`. `custo_total_investido()` não muda.
+  ✓ Esse é o comportamento corrigido.
+- Mudar preço de material: não toca produções passadas. Histórico congelado. ✓
+
+**Migration:** `database/db.py._apply_migrations` detecta a ausência da coluna,
+aplica `ALTER TABLE` e faz backfill dos registros pré-migração com o custo atual
+da view (melhor aproximação histórica disponível; sem impacto em dados de produção
+futuros, que sempre gravarão o valor real).
+
+**Trade-off conhecido:** peças sem nenhum material cadastrado terão
+`custo_unitario = 0` — esse caso já ocorria antes (o custo derivado era zero).
 
 ---
 

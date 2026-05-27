@@ -14,9 +14,10 @@ class Producao:
     id: int
     peca_id: int
     peca_nome: str
-    peca_custo: float
+    peca_custo: float       # custo atual (via vw_peca_custo) — para exibição
     quantidade: int
-    data: str                     # 'YYYY-MM-DD'
+    data: str               # 'YYYY-MM-DD'
+    custo_unitario: float = 0.0   # snapshot gravado no momento da produção (ADR-013)
     observacao: str | None = None
 
     @property

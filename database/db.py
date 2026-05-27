@@ -39,8 +39,27 @@ def init_app(app):
 def _apply_migrations(app):
     """Aplica migrações incrementais sem recriar o banco (preserva dados)."""
     conn = sqlite3.connect(app.config["DATABASE_PATH"])
-    colunas = [row[1] for row in conn.execute("PRAGMA table_info(peca)").fetchall()]
-    if "foto" not in colunas:
+
+    # Etapa 11.2 — coluna foto na tabela peca
+    colunas_peca = [row[1] for row in conn.execute("PRAGMA table_info(peca)").fetchall()]
+    if "foto" not in colunas_peca:
         conn.execute("ALTER TABLE peca ADD COLUMN foto TEXT")
         conn.commit()
+
+    # ADR-013 — snapshot de custo na tabela producao
+    # Registros existentes recebem o custo atual da view como aproximação.
+    colunas_prod = [row[1] for row in conn.execute("PRAGMA table_info(producao)").fetchall()]
+    if "custo_unitario" not in colunas_prod:
+        conn.execute("ALTER TABLE producao ADD COLUMN custo_unitario REAL NOT NULL DEFAULT 0")
+        conn.execute("""
+            UPDATE producao
+            SET custo_unitario = (
+                SELECT COALESCE(vpc.custo_producao, 0)
+                FROM vw_peca_custo vpc
+                WHERE vpc.peca_id = producao.peca_id
+            )
+            WHERE custo_unitario = 0
+        """)
+        conn.commit()
+
     conn.close()
