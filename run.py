@@ -21,10 +21,6 @@ from backend import create_app
 
 app = create_app()
 
-@app.route('/ping')
-def ping():
-    return {"status": "ok"}, 200
-
 if __name__ == "__main__":
     # Em ambientes cloud (Render, Heroku, Fly...) a variável `PORT` vem
     # setada pelo provedor e o load balancer só alcança o processo se ele
