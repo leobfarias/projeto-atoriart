@@ -1,8 +1,10 @@
 """Repositório de despesas.
 
 Contrato público:
-    list_despesas(desde=None)      -> list[Despesa]
-        `desde` filtra por data ('YYYY-MM-DD'); None traz todas.
+    list_despesas(desde=None,
+                  ate=None)         -> list[Despesa]
+        Filtra por intervalo de datas ('YYYY-MM-DD' em ambos);
+        ambos None traz todas.
     get_despesa(despesa_id)        -> Despesa | None
     criar(descricao, valor, data,
           categoria)               -> int (novo id)
@@ -17,13 +19,18 @@ from backend.models.despesa import Despesa
 
 # ---------- Leitura ----------
 
-def list_despesas(desde=None):
+def list_despesas(desde=None, ate=None):
     db = get_db()
     sql = "SELECT id, descricao, categoria, valor, data FROM despesa"
-    params = ()
+    where, params = [], []
     if desde:
-        sql += " WHERE data >= ?"
-        params = (desde,)
+        where.append("data >= ?")
+        params.append(desde)
+    if ate:
+        where.append("data <= ?")
+        params.append(ate)
+    if where:
+        sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY data DESC, id DESC"
 
     rows = db.execute(sql, params).fetchall()

@@ -1438,15 +1438,26 @@ Cartão débito).
 - [backend/services/relatorios_service.py](backend/services/relatorios_service.py)
 
 **Sem repository próprio.** Consome `venda_repository.list_vendas()`
-e agrega tudo em Python.
+e `despesa_repository.list_despesas()`. As queries de recorte
+(matéria-prima, peça, forma de pagamento) usam SQL inline via `get_db()`
+— exceção arquitetural documentada no docstring do service.
 
-Conteúdo:
-- 4 cards: faturamento, custo de produção, lucro bruto, margem%
-- **Top 5 peças mais lucrativas** (ranking)
-- **Distribuição por forma de pagamento** — usa `<meter>` HTML5 para
-  barra de progresso (sem JS!)
-- **Tabela detalhada por peça** com todas as colunas (vendas, qtd,
-  faturamento, custo, lucro, margem)
+**Filtros disponíveis:**
+- **Período:** "Últimos 30 dias" (default) ou um mês específico
+  (`?mes=2026-05`). Helper `_periodo(mes)` no service devolve
+  `(desde, ate, label)` e é o único lugar com a regra. Os 3 recortes
+  aceitam o mesmo `mes` — `?filtro=peca&peca_id=3&mes=2026-05` mostra
+  só a peça 3 só no maio de 2026.
+- **Recorte:** matéria-prima, forma de pagamento ou peça.
+
+**Conteúdo (consolidado):**
+- 4 cards: faturamento, custo de produção, **lucro bruto** e
+  **lucro líquido** (= lucro bruto − despesas do período;
+  *"quanto dinheiro fica no bolso"*).
+- **Top 5 peças mais lucrativas** (ranking).
+- **Distribuição por forma de pagamento** — usa `<meter>` HTML5.
+- **Tabela detalhada por peça** com colunas (vendas, qtd, faturamento,
+  custo, lucro, margem).
 
 ### 16.8 Configurações — `/configuracoes/`
 

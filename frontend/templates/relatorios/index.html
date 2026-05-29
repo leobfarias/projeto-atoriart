@@ -15,8 +15,8 @@
     <div>
       <h1 class="content__title">Relatórios</h1>
       <p class="content__subtitle">
-        Visão consolidada dos últimos {{ janela_dias }} dias
-        ({{ total_vendas }} vendas registradas).
+        Período: <strong>{{ periodo_label }}</strong>
+        — {{ total_vendas }} venda{{ 's' if total_vendas != 1 }} registrada{{ 's' if total_vendas != 1 }}.
       </p>
     </div>
   </header>
@@ -32,20 +32,35 @@
       <p class="card__value">R$ {{ '%.2f'|format(custo_total) }}</p>
     </article>
     <article class="card">
-      <p class="card__label">Lucro bruto (sem contar despesas, apenas custos de produção)</p>
-      <p class="card__value">R$ {{ '%.2f'|format(lucro) }}</p>
+      <p class="card__label">Lucro bruto</p>
+      <p class="card__value">R$ {{ '%.2f'|format(lucro_bruto) }}</p>
+      <p class="card__hint">Faturamento − custo de produção</p>
     </article>
     <article class="card">
-      <p class="card__label">Margem</p>
-      <p class="card__value">{{ '%.1f'|format(margem) }}%</p>
+      <p class="card__label">Lucro líquido</p>
+      <p class="card__value">R$ {{ '%.2f'|format(lucro_liquido) }}</p>
+      <p class="card__hint">Lucro bruto − despesas (R$ {{ '%.2f'|format(total_despesas) }})</p>
     </article>
   </section>
 
-  {# ---------- Painel de filtros ---------- #}
+  {# ---------- Painel de filtros (período + recorte) ---------- #}
   <section class="filtro-painel" aria-label="Filtrar relatório">
     <form class="filtro-form" method="get" action="{{ url_for('relatorios.index') }}">
+
       <div class="filtro-grupo">
-        <label class="filtro-label" for="filtro-tipo">Filtrar por</label>
+        <label class="filtro-label" for="filtro-mes">Período</label>
+        <select class="filtro-select" id="filtro-mes" name="mes">
+          <option value="">Últimos {{ 30 }} dias</option>
+          {% for m in meses %}
+            <option value="{{ m.valor }}" {% if mes_selecionado == m.valor %}selected{% endif %}>
+              {{ m.label }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="filtro-grupo">
+        <label class="filtro-label" for="filtro-tipo">Recorte</label>
         <select class="filtro-select" id="filtro-tipo" name="filtro">
           <option value="">— Visão geral —</option>
           <option value="materia_prima" {% if filtro == 'materia_prima' %}selected{% endif %}>
@@ -103,8 +118,8 @@
 
       <div class="filtro-acoes">
         <button class="filtro-btn" type="submit">Filtrar</button>
-        {% if filtro %}
-          <a class="filtro-limpar" href="{{ url_for('relatorios.index') }}">Limpar filtro</a>
+        {% if filtro or mes_selecionado %}
+          <a class="filtro-limpar" href="{{ url_for('relatorios.index') }}">Limpar filtros</a>
         {% endif %}
       </div>
     </form>
@@ -121,7 +136,7 @@
       <section class="relatorio-secao filtro-resultado">
         <h2 class="relatorio-secao__titulo">
           Matéria-prima: {{ dados_filtro.material_nome }}
-          <small class="relatorio-badge">últimos {{ janela_dias }} dias</small>
+          <small class="relatorio-badge">{{ dados_filtro.periodo_label }}</small>
         </h2>
 
         <div class="filtro-kpis">
@@ -194,7 +209,7 @@
       <section class="relatorio-secao filtro-resultado">
         <h2 class="relatorio-secao__titulo">
           Pagamento via: {{ dados_filtro.forma }}
-          <small class="relatorio-badge">últimos {{ janela_dias }} dias</small>
+          <small class="relatorio-badge">{{ dados_filtro.periodo_label }}</small>
         </h2>
 
         <div class="filtro-kpis">
@@ -251,7 +266,7 @@
       <section class="relatorio-secao filtro-resultado">
         <h2 class="relatorio-secao__titulo">
           Peça: {{ dados_filtro.peca_nome }}
-          <small class="relatorio-badge">últimos {{ janela_dias }} dias</small>
+          <small class="relatorio-badge">{{ dados_filtro.periodo_label }}</small>
         </h2>
 
         <div class="filtro-kpis">

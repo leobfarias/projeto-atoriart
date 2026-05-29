@@ -240,7 +240,7 @@ do banco:
 | Produção       | `/producao/`     | Produções e cadastro de peças; produção **debita os materiais** consumidos. |
 | Vendas         | `/vendas/`       | Registro de vendas com baixa automática de estoque.      |
 | Despesas       | `/despesas/`     | Registro de custos do negócio (alimenta a receita líquida).|
-| Relatórios     | `/relatorios/`   | Consolidação das vendas dos últimos 30 dias.             |
+| Relatórios     | `/relatorios/`   | Consolidação com filtro por mês ou últimos 30 dias; KPIs incluem **lucro líquido**. |
 | Configurações  | `/configuracoes/`| Informações do sistema, da aplicação e do banco.         |
 
 O **custo de produção de cada peça é calculado automaticamente** a partir
@@ -250,8 +250,9 @@ o custo, o lucro e a margem.
 
 ### Próximas etapas (backlog)
 
-1. Filtro de período personalizado nas listagens e no relatório (hoje
-   fixo em 30 dias; já existem filtros dinâmicos no `/relatorios/`).
+1. Filtro de período arbitrário (range de datas) nas listagens —
+   `/relatorios/` já filtra por mês específico ou últimos 30 dias; o
+   resto das páginas segue fixo em 30 dias.
 2. Persistência confiável no Render (disco persistente ou migrar
    SQLite → Postgres).
 

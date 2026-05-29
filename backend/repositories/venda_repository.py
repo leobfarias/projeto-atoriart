@@ -18,7 +18,7 @@ from backend.models.venda import Venda
 
 # ---------- Leitura ----------
 
-def list_vendas(desde=None):
+def list_vendas(desde=None, ate=None):
     db = get_db()
     sql = (
         "SELECT v.id, v.peca_id, v.quantidade, v.valor_total, "
@@ -29,10 +29,15 @@ def list_vendas(desde=None):
         "JOIN peca pe ON pe.id = v.peca_id "
         "LEFT JOIN vw_peca_custo vpc ON vpc.peca_id = pe.id"
     )
-    params = ()
+    where, params = [], []
     if desde:
-        sql += " WHERE v.data >= ?"
-        params = (desde,)
+        where.append("v.data >= ?")
+        params.append(desde)
+    if ate:
+        where.append("v.data <= ?")
+        params.append(ate)
+    if where:
+        sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY v.data DESC, v.id DESC"
 
     rows = db.execute(sql, params).fetchall()

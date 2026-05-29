@@ -1,48 +1,110 @@
 """Regra de negócio da página de Relatórios.
 
-Lê as vendas dos últimos 30 dias e agrega de várias formas:
+Agrega vendas e despesas em duas dimensões:
 
-- KPIs gerais: faturamento, custo, lucro, margem%
-- Ranking de peças por lucro (lista completa, ordenada)
-- Distribuição por forma de pagamento (com % do faturamento)
-- Detalhamento por peça (mesmo ranking, exibido como tabela)
+- **Período** (`mes` opcional). Sem parâmetro: últimos 30 dias. Com
+  parâmetro 'YYYY-MM': aquele mês inteiro (ex.: '2026-05' → todo o
+  mês de maio de 2026).
+- **Recorte** (filtro opcional via `dados_por_*`): matéria-prima,
+  forma de pagamento ou peça específica.
 
-Filtros disponíveis (retornam dados_filtro para o template):
-- dados_por_materia_prima(material_id)
-- dados_por_forma_pagamento_especifica(forma)
-- dados_por_peca_detalhe(peca_id)
+Os dois se compõem — `?mes=2026-05&filtro=peca&peca_id=3` mostra a
+peça 3 só com dados de maio/2026.
 
-Esta página NÃO tem repositório próprio: consome `venda_repository` para
-o consolidado e `get_db()` diretamente para as queries de filtro (joins
-específicos de relatório que não pertencem a nenhum repositório geral).
+KPIs centrais no consolidado:
+- Faturamento, Custo de produção, Lucro bruto, **Lucro líquido**
+  (= faturamento − custo − despesas do mesmo período).
+
+Esta página NÃO tem repositório próprio: consome
+`venda_repository` / `despesa_repository` para o consolidado e
+`get_db()` diretamente para as queries de filtro (joins específicos
+de relatório que não pertencem a nenhum repositório geral).
 """
 from datetime import date, timedelta
 
 from database.db import get_db
-from backend.repositories import venda_repository
+from backend.repositories import despesa_repository, venda_repository
 
 JANELA_DIAS = 30
 
+NOMES_MESES = {
+    1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+    5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+    9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro",
+}
 
-def dados_relatorio():
-    desde = (date.today() - timedelta(days=JANELA_DIAS)).isoformat()
-    vendas = venda_repository.list_vendas(desde=desde)
+
+# ---------- Período (mês específico OU últimos 30 dias) ----------
+
+def _periodo(mes):
+    """Devolve `(desde, ate, label)` a partir de `mes` ('YYYY-MM' ou None).
+
+    `desde` e `ate` são strings ISO ('YYYY-MM-DD') prontas pra alimentar
+    os repositórios e SQL inline. `label` é o texto exibido no template.
+    """
+    if mes:
+        ano_str, mes_str = mes.split("-")
+        ano, m = int(ano_str), int(mes_str)
+        primeiro = date(ano, m, 1)
+        if m == 12:
+            proximo = date(ano + 1, 1, 1)
+        else:
+            proximo = date(ano, m + 1, 1)
+        ultimo = proximo - timedelta(days=1)
+        return primeiro.isoformat(), ultimo.isoformat(), f"{NOMES_MESES[m]}/{ano}"
+    # Default: janela rolante.
+    ate = date.today()
+    desde = ate - timedelta(days=JANELA_DIAS)
+    return desde.isoformat(), ate.isoformat(), f"últimos {JANELA_DIAS} dias"
+
+
+def meses_disponiveis():
+    """Meses ('YYYY-MM') com pelo menos uma venda ou despesa registrada.
+
+    Devolve lista de dicts `{'valor': '2026-05', 'label': 'Maio/2026'}`
+    do mais recente para o mais antigo — alimenta o `<select>` do filtro.
+    """
+    db = get_db()
+    rows = db.execute(
+        "SELECT DISTINCT strftime('%Y-%m', data) AS mes FROM venda "
+        "UNION "
+        "SELECT DISTINCT strftime('%Y-%m', data) AS mes FROM despesa "
+        "ORDER BY mes DESC"
+    ).fetchall()
+    return [_label_mes(r["mes"]) for r in rows if r["mes"]]
+
+
+def _label_mes(valor):
+    ano_str, mes_str = valor.split("-")
+    return {"valor": valor, "label": f"{NOMES_MESES[int(mes_str)]}/{ano_str}"}
+
+
+# ---------- Consolidado ----------
+
+def dados_relatorio(mes=None):
+    desde, ate, periodo_label = _periodo(mes)
+
+    vendas = venda_repository.list_vendas(desde=desde, ate=ate)
+    despesas = despesa_repository.list_despesas(desde=desde, ate=ate)
 
     faturamento = sum(v.valor_total for v in vendas)
     custo_total = sum(v.custo_total for v in vendas)
-    lucro = faturamento - custo_total
-    margem = (lucro / faturamento * 100) if faturamento else 0.0
+    lucro_bruto = faturamento - custo_total
+    total_despesas = sum(d.valor for d in despesas)
+    lucro_liquido = lucro_bruto - total_despesas
 
     pecas_ranking = _ranking_por_peca(vendas)
     formas_pagamento = _distribuicao_por_pagamento(vendas, faturamento)
 
     return {
-        "janela_dias": JANELA_DIAS,
+        "mes_selecionado": mes or "",
+        "periodo_label": periodo_label,
         "total_vendas": len(vendas),
         "faturamento": faturamento,
         "custo_total": custo_total,
-        "lucro": lucro,
-        "margem": margem,
+        "lucro_bruto": lucro_bruto,
+        "total_despesas": total_despesas,
+        "lucro_liquido": lucro_liquido,
         "top_pecas": pecas_ranking[:5],
         "pecas_detalhe": pecas_ranking,
         "formas_pagamento": formas_pagamento,
@@ -59,9 +121,10 @@ def formas_pagamento_disponiveis():
     return [r["forma"] for r in rows]
 
 
-def dados_por_materia_prima(material_id):
-    """Relatório filtrado por matéria-prima nos últimos JANELA_DIAS dias."""
-    desde = (date.today() - timedelta(days=JANELA_DIAS)).isoformat()
+# ---------- Recortes (matéria-prima / forma de pagamento / peça) ----------
+
+def dados_por_materia_prima(material_id, mes=None):
+    desde, ate, periodo_label = _periodo(mes)
     db = get_db()
 
     mat = db.execute(
@@ -88,20 +151,20 @@ def dados_por_materia_prima(material_id):
         "FROM venda v "
         "JOIN peca_material pm ON pm.peca_id = v.peca_id "
         "JOIN peca pe ON pe.id = v.peca_id "
-        "WHERE pm.material_id = ? AND v.data >= ? "
+        "WHERE pm.material_id = ? AND v.data >= ? AND v.data <= ? "
         "GROUP BY v.peca_id, pe.nome "
         "ORDER BY total_fat DESC",
-        (material_id, desde),
+        (material_id, desde, ate),
     ).fetchall()
 
-    # Custo gasto com este material via produções no período (preço atual × qtd consumida)
+    # Custo gasto com este material via produções no período (preço atual × qtd consumida).
     custo_row = db.execute(
         "SELECT COALESCE(SUM(pr.quantidade * pm.quantidade * m.valor_unitario), 0) AS custo "
         "FROM producao pr "
         "JOIN peca_material pm ON pm.peca_id = pr.peca_id "
         "JOIN material m ON m.id = pm.material_id "
-        "WHERE pm.material_id = ? AND pr.data >= ?",
-        (material_id, desde),
+        "WHERE pm.material_id = ? AND pr.data >= ? AND pr.data <= ?",
+        (material_id, desde, ate),
     ).fetchone()
 
     total_receita = sum(r["total_fat"] for r in vendas_rows)
@@ -109,6 +172,7 @@ def dados_por_materia_prima(material_id):
 
     return {
         "tipo": "materia_prima",
+        "periodo_label": periodo_label,
         "material_id": material_id,
         "material_nome": mat["nome"],
         "material_unidade": mat["unidade"],
@@ -121,9 +185,8 @@ def dados_por_materia_prima(material_id):
     }
 
 
-def dados_por_forma_pagamento_especifica(forma):
-    """Relatório filtrado por forma de pagamento nos últimos JANELA_DIAS dias."""
-    desde = (date.today() - timedelta(days=JANELA_DIAS)).isoformat()
+def dados_por_forma_pagamento_especifica(forma, mes=None):
+    desde, ate, periodo_label = _periodo(mes)
     db = get_db()
 
     total_row = db.execute(
@@ -131,8 +194,9 @@ def dados_por_forma_pagamento_especifica(forma):
         "       COUNT(id) AS qtd_vendas, "
         "       COALESCE(SUM(quantidade), 0) AS total_itens "
         "FROM venda "
-        "WHERE COALESCE(forma_pagamento, 'Não informado') = ? AND data >= ?",
-        (forma, desde),
+        "WHERE COALESCE(forma_pagamento, 'Não informado') = ? "
+        "  AND data >= ? AND data <= ?",
+        (forma, desde, ate),
     ).fetchone()
 
     pecas_rows = db.execute(
@@ -142,15 +206,17 @@ def dados_por_forma_pagamento_especifica(forma):
         "       COUNT(v.id) AS total_vendas "
         "FROM venda v "
         "JOIN peca pe ON pe.id = v.peca_id "
-        "WHERE COALESCE(v.forma_pagamento, 'Não informado') = ? AND v.data >= ? "
+        "WHERE COALESCE(v.forma_pagamento, 'Não informado') = ? "
+        "  AND v.data >= ? AND v.data <= ? "
         "GROUP BY v.peca_id, pe.nome "
         "ORDER BY total_fat DESC",
-        (forma, desde),
+        (forma, desde, ate),
     ).fetchall()
 
     qtd = total_row["qtd_vendas"]
     return {
         "tipo": "forma_pagamento",
+        "periodo_label": periodo_label,
         "forma": forma,
         "total_recebido": total_row["total"],
         "qtd_vendas": qtd,
@@ -160,9 +226,8 @@ def dados_por_forma_pagamento_especifica(forma):
     }
 
 
-def dados_por_peca_detalhe(peca_id):
-    """Relatório filtrado por peça nos últimos JANELA_DIAS dias."""
-    desde = (date.today() - timedelta(days=JANELA_DIAS)).isoformat()
+def dados_por_peca_detalhe(peca_id, mes=None):
+    desde, ate, periodo_label = _periodo(mes)
     db = get_db()
 
     peca = db.execute(
@@ -189,8 +254,8 @@ def dados_por_peca_detalhe(peca_id):
     prod_row = db.execute(
         "SELECT COALESCE(SUM(quantidade), 0) AS total_produzido, "
         "       COALESCE(SUM(quantidade * custo_unitario), 0) AS custo_investido "
-        "FROM producao WHERE peca_id = ? AND data >= ?",
-        (peca_id, desde),
+        "FROM producao WHERE peca_id = ? AND data >= ? AND data <= ?",
+        (peca_id, desde, ate),
     ).fetchone()
 
     vendas_por_forma = db.execute(
@@ -199,21 +264,22 @@ def dados_por_peca_detalhe(peca_id):
         "       SUM(quantidade) AS qtd, "
         "       COUNT(id) AS vendas "
         "FROM venda "
-        "WHERE peca_id = ? AND data >= ? "
+        "WHERE peca_id = ? AND data >= ? AND data <= ? "
         "GROUP BY forma ORDER BY total DESC",
-        (peca_id, desde),
+        (peca_id, desde, ate),
     ).fetchall()
 
     total_row = db.execute(
         "SELECT COALESCE(SUM(valor_total), 0) AS total_fat, "
         "       COALESCE(SUM(quantidade), 0) AS total_qtd, "
         "       COUNT(id) AS total_vendas "
-        "FROM venda WHERE peca_id = ? AND data >= ?",
-        (peca_id, desde),
+        "FROM venda WHERE peca_id = ? AND data >= ? AND data <= ?",
+        (peca_id, desde, ate),
     ).fetchone()
 
     return {
         "tipo": "peca",
+        "periodo_label": periodo_label,
         "peca_id": peca_id,
         "peca_nome": peca["nome"],
         "peca_preco_venda": peca["preco_venda"],
@@ -228,6 +294,8 @@ def dados_por_peca_detalhe(peca_id):
         "total_vendas": total_row["total_vendas"],
     }
 
+
+# ---------- Agregações em memória (consolidado) ----------
 
 def _ranking_por_peca(vendas):
     """Agrupa vendas por peça e calcula totais. Ordena por lucro desc."""

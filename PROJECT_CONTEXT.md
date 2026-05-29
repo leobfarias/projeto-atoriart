@@ -432,9 +432,41 @@ no commit `dacfcdc` para também usar `producao_repository.custo_total_investido
   o trade-off do filesystem efêmero. "Estado atual" e "Próximas etapas"
   atualizados pra refletir o que de fato sobrou no backlog.
 
+### Etapa 15 ✅ — Filtro por mês + Lucro líquido nos Relatórios
+
+**Filtro de período por mês:**
+- Novo `<select>` no painel de filtros do `/relatorios/` lista os meses
+  que têm pelo menos uma venda ou despesa registrada (ex.: "Maio/2026").
+- Default mantido: "Últimos 30 dias" (janela rolante).
+- Mês específico filtra todas as agregações daquele mês inteiro
+  (`2026-05-01` a `2026-05-31`) — vendas, custos, despesas e os 3
+  recortes (matéria-prima, forma de pagamento, peça).
+- Helper centralizado `_periodo(mes)` em `relatorios_service` devolve
+  `(desde, ate, label)` — uma única fonte da regra de período.
+- Query `meses_disponiveis()` faz `SELECT DISTINCT strftime('%Y-%m', data)`
+  unindo vendas e despesas, ordenando do mais recente.
+
+**Lucro líquido substituindo Margem:**
+- O 4º card do consolidado mudou de "Margem (%)" para
+  **"Lucro líquido (R$)"** — `faturamento − custo de produção − despesas`
+  do período. É o "dinheiro no bolso" depois de TUDO.
+- Card mostra também as despesas subtraídas como hint:
+  *"Lucro bruto − despesas (R$ X,XX)"*.
+- Margem continua aparecendo no ranking por peça e na tabela de
+  detalhamento, onde tem sentido contextual.
+
+**Impacto na arquitetura:**
+- `venda_repository.list_vendas(desde, ate)` e
+  `despesa_repository.list_despesas(desde, ate)` ganharam o segundo
+  argumento `ate` (backward-compat: ambos defaults `None`). Continua
+  filtrando só por `desde` se quem chama não passar `ate`.
+- Service ficou com **uma só regra de período** (`_periodo`) usada
+  por consolidado e pelos 3 recortes — antes cada `dados_por_*`
+  calculava o `desde` localmente.
+
 **Não entregue (intencionalmente):**
-- Filtro de período personalizado nas listagens / relatório (já há
-  filtros dinâmicos no `/relatorios/`, mas o restante segue fixo em 30d).
+- Filtro arbitrário (7d / 90d / range custom) — abriria muita
+  combinação pra pouca demanda. Mês + últimos 30d cobre o caso real.
 - Persistência confiável no Render (disco persistente ou Postgres) —
   trade-off conhecido do free tier do Render, documentado no README.
 
@@ -461,7 +493,7 @@ no commit `dacfcdc` para também usar `producao_repository.custo_total_investido
 | 11.4  | Custo investido histórico     | Snapshot `custo_unitario` em `producao`; vitrine imune a vendas ✅ |
 | 13    | Trocar senha pela interface   | Credencial em `admin_credencial`; fluxo com verificação + confirmação ✅ |
 | 14    | Limpeza de código             | `form_helpers` partilhado; `extensions.py` removido; docs atualizados ✅ |
-| 12    | Filtro de período             | Seletor 7d / 30d / 90d / custom em vendas/relatórios |
+| 15    | Filtro por mês + Lucro líquido | Seletor de mês no `/relatorios/`; card Margem virou Lucro líquido ✅ |
 
 A cada etapa concluída, atualizar a seção **Estado atual** e o **Roadmap**.
 
