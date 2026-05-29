@@ -53,7 +53,11 @@ def validar_form(form_data, materiais_disponiveis):
         elif qtd > 0:
             materiais_selecionados[m.id] = qtd
 
-    if materiais_disponiveis and not materiais_selecionados:
+    # Regra de negócio: peça SEMPRE precisa de pelo menos um material,
+    # porque o custo de produção dela é derivado deles (view vw_peca_custo).
+    # A blueprint já bloqueia a UI quando não há material cadastrado;
+    # esta verificação é a defesa final (POST direto, edição etc.).
+    if not materiais_selecionados:
         erros["materiais"] = "Selecione ao menos um material para a peça."
 
     valores = {

@@ -106,6 +106,17 @@ def apagar(producao_id):
 def peca_nova():
     materiais_disponiveis = material_repository.list_materiais()
 
+    # Guard: sem material cadastrado, não dá pra calcular custo de produção
+    # da peça (custo vem de Σ quantidade × valor_unitario dos materiais).
+    # Avisamos e mandamos o usuário cadastrar matéria-prima primeiro.
+    if not materiais_disponiveis:
+        flash(
+            "Cadastre pelo menos um material antes de criar uma peça — "
+            "o custo de produção é calculado a partir dos materiais.",
+            "error",
+        )
+        return redirect(url_for("materia_prima.novo"))
+
     if request.method == "POST":
         require_csrf()
         foto_nova = _salvar_foto(request.files.get("foto"))

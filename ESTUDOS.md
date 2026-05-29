@@ -1410,6 +1410,17 @@ digitado** — é a soma dos materiais, calculada pela view `vw_peca_custo`.
 As listas de Produção e Catálogo mostram, por peça, custo, preço e
 lucro/margem ([ADR-010](#adr-010--custo-da-peça-calculado-por-uma-view)).
 
+**Pelo menos um material é obrigatório.** Como o custo da peça vem dos
+materiais, sem material o custo seria zero e a peça ficaria órfã. A
+defesa rola em duas camadas:
+- **Na rota** (`peca_nova` GET): se `material_repository.list_materiais()`
+  voltar vazio, dá um `flash(..., "error")` e redireciona pra
+  `/materiais/novo`. O usuário não vê um formulário furado.
+- **No service** (`peca_service.validar_form`): mesmo se alguém POSTar
+  direto sem ter passado pela UI, a validação rejeita com a mensagem
+  *"Selecione ao menos um material para a peça."* (mostrada inline ao
+  lado da seção de materiais via `erros["materiais"]`).
+
 ### 16.6 Vendas — `/vendas/` (CRUD: criar / apagar)
 
 **Arquivos:**

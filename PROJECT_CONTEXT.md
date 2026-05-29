@@ -470,9 +470,36 @@ no commit `dacfcdc` para também usar `producao_repository.custo_total_investido
 - Persistência confiável no Render (disco persistente ou Postgres) —
   trade-off conhecido do free tier do Render, documentado no README.
 
----
+### Etapa 16 ✅ — Peça exige matéria-prima (UX guard + defesa server-side)
 
-## 7. Roadmap por etapas
+**Regra de negócio:** uma peça **não pode existir sem pelo menos um
+material**, porque o custo de produção dela é derivado dos materiais
+(view `vw_peca_custo`). Sem material, custo = 0 → lucro líquido distorce
+e a peça vira um item órfão no catálogo.
+
+**Defesa em duas camadas:**
+1. **UX guard na blueprint** ([producao/routes.py](backend/blueprints/producao/routes.py)):
+   o `GET /producao/pecas/nova` agora consulta `material_repository.list_materiais()`
+   antes de renderizar o form. Se a lista voltar vazia:
+   ```python
+   flash("Cadastre pelo menos um material antes de criar uma peça...", "error")
+   return redirect(url_for("materia_prima.novo"))
+   ```
+   O usuário é levado direto para a tela de cadastrar matéria-prima, com
+   a mensagem explicando o porquê — sem ver um formulário inútil.
+
+2. **Validação no service** ([peca_service.validar_form](backend/services/peca_service.py)):
+   `if not materiais_selecionados: erros["materiais"] = "Selecione ao menos um material para a peça."`
+   Vale para qualquer POST — criar ou editar, vindo da UI ou direto.
+   Antes a validação só disparava quando `materiais_disponiveis` tinha
+   conteúdo; agora é incondicional, o que torna o service auto-suficiente
+   (não depende da blueprint pra ser correto).
+
+**Por que as duas?** Defense in depth. A blueprint melhora a UX
+(redireciona em vez de mostrar formulário furado). O service garante a
+regra mesmo se alguém POSTar direto, fizer testes automatizados ou
+adicionar outra rota no futuro. Cada camada faz seu trabalho sem
+duplicar lógica.
 
 | Etapa | Tema                          | Status                                              |
 |-------|-------------------------------|-----------------------------------------------------|
@@ -494,6 +521,7 @@ no commit `dacfcdc` para também usar `producao_repository.custo_total_investido
 | 13    | Trocar senha pela interface   | Credencial em `admin_credencial`; fluxo com verificação + confirmação ✅ |
 | 14    | Limpeza de código             | `form_helpers` partilhado; `extensions.py` removido; docs atualizados ✅ |
 | 15    | Filtro por mês + Lucro líquido | Seletor de mês no `/relatorios/`; card Margem virou Lucro líquido ✅ |
+| 16    | Peça exige matéria-prima      | Guard no `GET` redireciona pra `/materiais/novo` se vazio; validação obriga ≥1 material ✅ |
 
 A cada etapa concluída, atualizar a seção **Estado atual** e o **Roadmap**.
 
