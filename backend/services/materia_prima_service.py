@@ -14,6 +14,7 @@ silenciosamente (`preco_total / quantidade_estoque`) e gravado em
 `vw_peca_custo` e, portanto, o custo de produção das peças.
 """
 from backend.repositories import material_repository
+from backend.services.form_helpers import numero
 
 
 # ---------- Listagem (já existia) ----------
@@ -56,17 +57,17 @@ def validar_form(form_data):
     elif len(unidade) > 10:
         erros["unidade"] = "Unidade muito longa (máx 10 caracteres)."
 
-    preco_total = _numero(form_data.get("preco_total"))
+    preco_total = numero(form_data.get("preco_total"))
     if preco_total is None or preco_total <= 0:
         erros["preco_total"] = "Preço total pago deve ser maior que zero."
 
     # Quantidade > 0 é obrigatória — sem ela não dá pra calcular o
     # valor unitário (divisão por zero).
-    quantidade_estoque = _numero(form_data.get("quantidade_estoque"))
+    quantidade_estoque = numero(form_data.get("quantidade_estoque"))
     if quantidade_estoque is None or quantidade_estoque <= 0:
         erros["quantidade_estoque"] = "Quantidade em estoque deve ser maior que zero."
 
-    estoque_minimo = _numero(form_data.get("estoque_minimo"))
+    estoque_minimo = numero(form_data.get("estoque_minimo"))
     if estoque_minimo is None or estoque_minimo < 0:
         erros["estoque_minimo"] = "Estoque mínimo deve ser ≥ 0."
 
@@ -115,16 +116,3 @@ def apagar(material_id):
     return None
 
 
-# ---------- Helpers ----------
-
-def _numero(raw):
-    """Converte string em float. Devolve None se inválido ou vazio."""
-    if raw is None:
-        return None
-    raw = str(raw).strip().replace(",", ".")
-    if not raw:
-        return None
-    try:
-        return float(raw)
-    except ValueError:
-        return None

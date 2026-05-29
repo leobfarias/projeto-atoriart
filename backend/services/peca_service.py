@@ -15,6 +15,7 @@ Funções:
     apagar(peca_id)                                -> (erro_msg | None)
 """
 from backend.repositories import material_repository, peca_repository
+from backend.services.form_helpers import inteiro, numero
 
 
 # ---------- Validação ----------
@@ -33,11 +34,11 @@ def validar_form(form_data, materiais_disponiveis):
     elif len(nome) > 80:
         erros["nome"] = "Nome muito longo (máx 80 caracteres)."
 
-    preco_venda = _numero(form_data.get("preco_venda"))
+    preco_venda = numero(form_data.get("preco_venda"))
     if preco_venda is None or preco_venda <= 0:
         erros["preco_venda"] = "Preço de venda deve ser maior que zero."
 
-    estoque = _inteiro(form_data.get("quantidade_estoque"))
+    estoque = inteiro(form_data.get("quantidade_estoque"))
     if estoque is None or estoque < 0:
         erros["quantidade_estoque"] = "Estoque deve ser ≥ 0."
 
@@ -46,7 +47,7 @@ def validar_form(form_data, materiais_disponiveis):
         raw = (form_data.get(f"material_{m.id}") or "").strip()
         if not raw:
             continue
-        qtd = _numero(raw)
+        qtd = numero(raw)
         if qtd is None or qtd < 0:
             erros[f"material_{m.id}"] = "Quantidade inválida."
         elif qtd > 0:
@@ -94,27 +95,3 @@ def apagar(peca_id):
     return None
 
 
-# ---------- Helpers ----------
-
-def _numero(raw):
-    if raw is None:
-        return None
-    raw = str(raw).strip().replace(",", ".")
-    if not raw:
-        return None
-    try:
-        return float(raw)
-    except ValueError:
-        return None
-
-
-def _inteiro(raw):
-    if raw is None:
-        return None
-    raw = str(raw).strip()
-    if not raw:
-        return None
-    try:
-        return int(raw)
-    except ValueError:
-        return None

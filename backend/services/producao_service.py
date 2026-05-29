@@ -21,6 +21,7 @@ from collections import Counter
 from datetime import date, timedelta
 
 from backend.repositories import peca_repository, producao_repository
+from backend.services.form_helpers import data_iso, inteiro
 
 JANELA_DIAS = 30
 
@@ -72,17 +73,17 @@ def _peca_mais_produzida(producoes):
 def validar_form(form_data, pecas_disponiveis):
     erros = {}
 
-    peca_id = _inteiro(form_data.get("peca_id"))
+    peca_id = inteiro(form_data.get("peca_id"))
     pecas_ids = {p.id for p in pecas_disponiveis}
     if peca_id is None or peca_id not in pecas_ids:
         erros["peca_id"] = "Escolha uma peça válida."
 
-    quantidade = _inteiro(form_data.get("quantidade"))
+    quantidade = inteiro(form_data.get("quantidade"))
     if quantidade is None or quantidade <= 0:
         erros["quantidade"] = "Quantidade deve ser maior que zero."
 
     data_str = (form_data.get("data") or "").strip()
-    data_valida = _data_iso(data_str)
+    data_valida = data_iso(data_str)
     if data_valida is None:
         erros["data"] = "Informe uma data válida."
 
@@ -157,26 +158,3 @@ def apagar(producao_id):
     return None
 
 
-# ---------- Helpers ----------
-
-def _inteiro(raw):
-    if raw is None:
-        return None
-    raw = str(raw).strip()
-    if not raw:
-        return None
-    try:
-        return int(raw)
-    except ValueError:
-        return None
-
-
-def _data_iso(raw):
-    """Aceita 'YYYY-MM-DD'. Retorna a própria string se válida, senão None."""
-    if not raw:
-        return None
-    try:
-        date.fromisoformat(raw)
-        return raw
-    except ValueError:
-        return None

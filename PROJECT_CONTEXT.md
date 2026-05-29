@@ -84,16 +84,17 @@ Projeto AtoriArt/
 ├── backend/                         # Tudo que é Python
 │   ├── __init__.py                  create_app() + paths para frontend/
 │   ├── config.py                    BaseConfig / Dev / Prod (lê .env)
-│   ├── extensions.py                placeholder p/ futuras extensões
-│   ├── security.py                  login_required, autenticação, CSRF
+│   ├── security.py                  login_required, autenticação, CSRF, trocar_senha
 │   ├── blueprints/                  controllers HTTP (rotas)
 │   │   ├── auth/routes.py           /auth/login, /auth/logout
 │   │   ├── catalogo/routes.py       /catalogo/
 │   │   └── dashboard/routes.py      /painel
 │   ├── services/                    regras de negócio + ViewModels
+│   │   ├── form_helpers.py          numero(), inteiro(), data_iso() — partilhados
 │   │   ├── catalogo_service.py
 │   │   └── dashboard_service.py
 │   ├── repositories/                acesso ao banco (lê via database.db)
+│   │   ├── credencial_repository.py
 │   │   └── peca_repository.py
 │   └── models/                      entidades de domínio (dataclasses)
 │       └── peca.py
@@ -105,23 +106,21 @@ Projeto AtoriArt/
 │   │   ├── auth/login.html
 │   │   ├── catalogo/index.html
 │   │   └── dashboard/index.html
-│   └── static/css/
-│       ├── base.css
-│       ├── login.css
-│       ├── sidebar.css
-│       ├── dashboard.css
-│       └── catalogo.css
+│   └── static/
+│       ├── logo.jpeg
+│       ├── uploads/.gitkeep         (fotos de peças vão aqui em runtime)
+│       └── css/                     CSS por contexto
 │
 ├── database/                        # Tudo que é banco
 │   ├── __init__.py                  marca como pacote Python
-│   ├── db.py                        get_db() / close_db() / init_app()
-│   ├── schema.sql                   CREATE TABLE das tabelas atuais
-│   ├── init_db.py                   cria/recria o .sqlite3 + seed
+│   ├── db.py                        get_db() / close_db() / init_app() / migrações
+│   ├── schema.sql                   CREATE TABLE / CREATE VIEW
+│   ├── init_db.py                   cria o .sqlite3 (--com-exemplos p/ seed)
 │   └── atoriart.sqlite3             (gerado, gitignored)
 │
 ├── .env / .env.example / .gitignore
 ├── requirements.txt
-├── run.py                           from backend import create_app
+├── run.py                           ponto de entrada (local e Render) + /ping temporário
 ├── PROJECT_CONTEXT.md
 └── README.md
 ```
@@ -417,8 +416,27 @@ no commit `dacfcdc` para também usar `producao_repository.custo_total_investido
   matéria-prima mostra "R$ X investidos" no lugar de "R$ X / unidade".
 - Ver [ADR-012](#adr-012--produção-consome-matéria-prima--cadastro-por-preço-total).
 
+### Etapa 14 ✅ — Limpeza de código (DRY, dead files, copy)
+- **Helpers `numero`, `inteiro`, `data_iso` extraídos** para
+  [backend/services/form_helpers.py](backend/services/form_helpers.py)
+  e importados por todos os 5 services que faziam `validar_form`. Antes
+  estavam duplicados (palavra por palavra) em cada arquivo. Os nomes
+  perderam o `_` privado porque agora são API pública compartilhada.
+- **`backend/extensions.py` removido:** era um placeholder vazio sem
+  nenhum import — espaço pra extensões Flask que nunca foram adicionadas.
+  Removível sem efeito colateral.
+- **Docstrings obsoletas atualizadas** em `database/db.py` e `run.py` —
+  não pedem mais pra rodar `python database/init_db.py` na primeira vez,
+  já que o `run.py` faz auto-create.
+- **README:** seção nova "Deploy no Render" com env vars necessárias e
+  o trade-off do filesystem efêmero. "Estado atual" e "Próximas etapas"
+  atualizados pra refletir o que de fato sobrou no backlog.
+
 **Não entregue (intencionalmente):**
-- Filtro de período nas listagens / relatório (atualmente fixo em 30d).
+- Filtro de período personalizado nas listagens / relatório (já há
+  filtros dinâmicos no `/relatorios/`, mas o restante segue fixo em 30d).
+- Persistência confiável no Render (disco persistente ou Postgres) —
+  trade-off conhecido do free tier do Render, documentado no README.
 
 ---
 
@@ -442,6 +460,7 @@ no commit `dacfcdc` para também usar `producao_repository.custo_total_investido
 | 11.3  | Consumo de matéria-prima      | Produção debita materiais + cadastro por preço total ✅ |
 | 11.4  | Custo investido histórico     | Snapshot `custo_unitario` em `producao`; vitrine imune a vendas ✅ |
 | 13    | Trocar senha pela interface   | Credencial em `admin_credencial`; fluxo com verificação + confirmação ✅ |
+| 14    | Limpeza de código             | `form_helpers` partilhado; `extensions.py` removido; docs atualizados ✅ |
 | 12    | Filtro de período             | Seletor 7d / 30d / 90d / custom em vendas/relatórios |
 
 A cada etapa concluída, atualizar a seção **Estado atual** e o **Roadmap**.
@@ -450,6 +469,7 @@ A cada etapa concluída, atualizar a seção **Estado atual** e o **Roadmap**.
 
 ## 8. Como rodar (resumo)
 
+**Local:**
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -459,6 +479,20 @@ cp .env.example .env
 python run.py
 # abrir http://127.0.0.1:5000
 ```
+
+O banco SQLite é criado vazio automaticamente no primeiro `python run.py`.
+Para popular com dados fictícios, rode `python database/init_db.py --com-exemplos`.
+
+**Render (produção):**
+- Build: `pip install -r requirements.txt`
+- Start: `python run.py`
+- Env vars: `SECRET_KEY`, `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`,
+  `FLASK_ENV=production`, `SESSION_COOKIE_SECURE=1`.
+- `run.py` detecta `PORT` e escuta em `0.0.0.0` automaticamente.
+- **Anti-suspend (free tier):** o `run.py` declara um `GET /ping` público
+  fora do padrão de blueprints — único caso. Mantém a app acordada
+  enquanto um pinger externo (UptimeRobot etc.) bate de 14 em 14 min.
+  Remover quando subir para plano pago. Ver [ADR-015](#adr-015--rota-ping-anti-suspend-do-render-fora-do-padrão-de-blueprints).
 
 ---
 
@@ -501,9 +535,10 @@ e `pointer-events:none`.
 o form passando `valores` (string ou int conforme o caso) e `erros`,
 exibindo a mensagem inline ao lado do campo.
 **Motivo:** padrão único, sem dependência de Flask-WTF; o estudante lê o
-código de validação top-to-bottom sem indireções. Helpers `_numero()`,
-`_inteiro()`, `_data_iso()` cuidam das conversões e aceitam vírgula
-decimal brasileira.
+código de validação top-to-bottom sem indireções. Os helpers `numero()`,
+`inteiro()` e `data_iso()` vivem em [backend/services/form_helpers.py](backend/services/form_helpers.py)
+e são importados por todos os services — cuidam das conversões e
+aceitam vírgula decimal brasileira.
 
 ### ADR-007 — Efeitos colaterais no estoque (produção e venda)
 **Decisão:** criar/apagar produções e vendas mexe automaticamente em
@@ -711,6 +746,44 @@ manutenção real é feita fora da aplicação.
 filesystem efêmero do provedor), a senha **volta** ao hash do `.env`,
 porque o seed roda de novo. Para persistência em produção, configurar
 um disco persistente no Render (ou usar Postgres).
+
+### ADR-015 — Rota `/ping` anti-suspend do Render fora do padrão de blueprints
+
+**Problema:** o free tier do Render hiberna a app após ~15 min sem
+tráfego. O cold start seguinte demora muitos segundos. Pra contornar
+até subir pra plano pago, precisamos de um endpoint público que um
+pinger externo (UptimeRobot, BetterUptime, cron-job.org...) bata a
+cada ~14 min.
+
+**Decisão:** declarar a rota direto em `run.py`, **fora do padrão de
+blueprints** seguido pelos outros 9 módulos. Uma exceção consciente
+à regra de ouro do projeto.
+
+```python
+# em run.py
+@app.route("/ping")
+def ping():
+    return {"status": "ok"}, 200
+```
+
+**Motivo:** a rota é **explicitamente temporária**, com sunset claro
+(remover quando subir pra plano pago). Em casos assim, visibilidade e
+facilidade de remoção vencem consistência arquitetural:
+- Um único arquivo (`run.py`) — fácil de achar.
+- Uma única linha de `@app.route` mais uma função — fácil de deletar.
+- Não polui `backend/blueprints/` com um diretório `health/` órfão
+  cujo propósito a UI não conhece.
+- Comentário em cima do código deixa o sunset óbvio: "REMOVER quando
+  subir para plano pago".
+
+**Aceito como exceção:** o resto do projeto continua na regra (toda
+rota nova permanente vai em `backend/blueprints/<modulo>/routes.py`,
+registrada em `create_app()`). Esta é a **única** exceção e está
+documentada justamente pra ninguém usar de precedente.
+
+**Plano de remoção:** quando o plano do Render virar pago (ou migrar
+pra outro provedor sem suspensão), apagar o bloco `@app.route("/ping")`
+no `run.py` e desligar o monitor externo. ~6 linhas no total.
 
 ---
 

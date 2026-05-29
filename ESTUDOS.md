@@ -137,7 +137,6 @@ Projeto AtoriArt/
 ├── backend/
 │   ├── __init__.py                  # create_app() — application factory
 │   ├── config.py                    # Configs por ambiente + .env loader
-│   ├── extensions.py                # Placeholder p/ futuras extensões
 │   ├── security.py                  # login_required, autenticação, CSRF
 │   ├── blueprints/                  # Controllers HTTP (rotas)
 │   │   ├── auth/routes.py           # /auth/login, /auth/logout
@@ -1087,6 +1086,11 @@ def _register_blueprints(app):
     app.register_blueprint(catalogo_bp)
 ```
 
+> **Exceção pontual:** o `GET /ping` (health check anti-suspend do free
+> tier do Render) vive direto no `run.py`, fora de qualquer blueprint.
+> É **temporário** e tem um comentário em cima sinalizando isso. Toda
+> rota nova permanente segue o padrão acima — ver [ADR-015](#adr-015--rota-ping-anti-suspend-em-runpy-fora-dos-blueprints).
+
 ### Padrão geral das rotas
 
 ```python
@@ -1569,7 +1573,7 @@ def validar_form(form_data):
     elif len(nome) > 80:
         erros["nome"] = "Nome muito longo (máx 80 caracteres)."
 
-    valor = _numero(form_data.get("valor_unitario"))
+    valor = numero(form_data.get("valor_unitario"))
     if valor is None or valor < 0:
         erros["valor_unitario"] = "Valor deve ser ≥ 0."
 
@@ -1590,13 +1594,24 @@ def validar_form(form_data):
 - A rota decide o que fazer: se `erros` tem alguma coisa, re-renderiza
   o form com erros; se vazio, manda pro repository.
 
-### 17.3 Conversões de tipo — helpers `_numero()` / `_inteiro()` / `_data_iso()`
+### 17.3 Conversões de tipo — helpers `numero()` / `inteiro()` / `data_iso()`
 
-Forms HTML sempre mandam strings. Os helpers nos services convertem com
-segurança:
+Forms HTML sempre mandam strings. Os 3 helpers compartilhados vivem em
+[backend/services/form_helpers.py](backend/services/form_helpers.py) e
+são importados por todos os services:
 
 ```python
-def _numero(raw):
+# em qualquer service
+from backend.services.form_helpers import numero, inteiro, data_iso
+
+# uso
+valor = numero(form_data.get("valor_unitario"))
+```
+
+A implementação de `numero`:
+
+```python
+def numero(raw):
     """String → float. Devolve None se vazio ou inválido. Aceita vírgula."""
     if raw is None:
         return None
@@ -1613,8 +1628,12 @@ def _numero(raw):
 - Aceita vírgula brasileira (`2,50` vira `2.50`).
 - Devolve `None` em vez de explodir com erro — o chamador decide o
   que fazer (geralmente adiciona em `erros`).
-- Existe `_numero()`, `_inteiro()` (sem vírgula), `_data_iso()` (valida
+- Existe `numero()`, `inteiro()` (sem vírgula), `data_iso()` (valida
   formato `YYYY-MM-DD`).
+- **Por que num arquivo só?** Eram 5 cópias byte-a-byte iguais espalhadas
+  pelos services. Extrair pra um módulo compartilhado é DRY clássico —
+  qualquer ajuste futuro (ex.: aceitar `R$` no início) acontece em um
+  lugar só.
 
 ### 17.4 Exibição dos erros no template
 
@@ -1867,7 +1886,7 @@ Todo service expõe uma função `validar_form(form_data, ...)` que
 devolve `(erros, valores)`. `erros` vazio = válido.
 **Motivo:** padrão único, sem dependência de Flask-WTF. O estudante lê
 o código de validação de cima pra baixo sem indireções. Helpers
-`_numero()`, `_inteiro()`, `_data_iso()` cuidam das conversões e aceitam
+`numero()`, `inteiro()`, `data_iso()` (em `backend/services/form_helpers.py`) cuidam das conversões e aceitam
 vírgula decimal brasileira.
 
 ### ADR-007 — Efeitos colaterais no estoque (produção e venda)
@@ -1956,6 +1975,25 @@ e redireciona pro login.
 **Trade-off:** se o banco for resetado, a senha volta ao hash do `.env`.
 Para persistência real, configurar disco persistente no Render
 (ou migrar pra Postgres).
+
+### ADR-015 — Rota `/ping` anti-suspend (em `run.py`, fora dos blueprints)
+O free tier do Render hiberna a app após ~15 min sem tráfego. Pra
+contornar até subirmos pra plano pago, declaramos `GET /ping` direto no
+`run.py`:
+```python
+@app.route("/ping")
+def ping():
+    return {"status": "ok"}, 200
+```
+Um pinger externo (UptimeRobot, BetterUptime...) bate nele a cada ~14 min
+e a app não dorme.
+**Motivo de quebrar o padrão:** é **temporário**, com sunset claro.
+Quanto mais isolado e óbvio, mais fácil deletar depois. Em `run.py` é
+um arquivo só, com um comentário em cima sinalizando "REMOVER quando
+subir pra plano pago". Se virasse blueprint `health/`, espalharia
+arquivos e registros pra remover.
+**Exceção pontual:** **toda outra rota permanente continua indo em
+`backend/blueprints/<modulo>/routes.py`**. Esta é a única.
 
 ---
 

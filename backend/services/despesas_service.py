@@ -15,6 +15,7 @@ no dashboard.
 from datetime import date, timedelta
 
 from backend.repositories import despesa_repository
+from backend.services.form_helpers import data_iso, numero
 
 JANELA_DIAS = 30
 
@@ -86,12 +87,12 @@ def validar_form(form_data):
     elif len(descricao) > 120:
         erros["descricao"] = "Descrição muito longa (máx 120 caracteres)."
 
-    valor = _numero(form_data.get("valor"))
+    valor = numero(form_data.get("valor"))
     if valor is None or valor <= 0:
         erros["valor"] = "Valor deve ser maior que zero."
 
     data_str = (form_data.get("data") or "").strip()
-    data_valida = _data_iso(data_str)
+    data_valida = data_iso(data_str)
     if data_valida is None:
         erros["data"] = "Informe uma data válida."
 
@@ -127,30 +128,3 @@ def apagar(despesa_id):
     return None
 
 
-# ---------- Helpers ----------
-
-def _numero(raw):
-    """Converte string em float. Devolve None se inválido ou vazio.
-
-    Aceita vírgula decimal brasileira ('12,50' -> 12.5).
-    """
-    if raw is None:
-        return None
-    raw = str(raw).strip().replace(",", ".")
-    if not raw:
-        return None
-    try:
-        return float(raw)
-    except ValueError:
-        return None
-
-
-def _data_iso(raw):
-    """Aceita 'YYYY-MM-DD'. Retorna a própria string se válida, senão None."""
-    if not raw:
-        return None
-    try:
-        date.fromisoformat(raw)
-        return raw
-    except ValueError:
-        return None

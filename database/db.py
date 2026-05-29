@@ -1,10 +1,13 @@
 """Conexão com o SQLite.
 
-Usa o objeto `g` do Flask para guardar a conexão durante o request atual.
-Ao fim do request, a conexão é fechada automaticamente.
+Cada request abre uma conexão (guardada em `flask.g`) e a fecha no
+teardown. As migrações em `_apply_migrations` rodam uma única vez por
+processo, na criação da app, garantindo que o schema esteja atualizado
+mesmo em ambientes que reusam o arquivo do banco entre deploys.
 
-Para criar (ou recriar) o arquivo do banco, rode na raiz do projeto:
-    python database/init_db.py
+O arquivo do banco é criado automaticamente em `run.py` na primeira
+execução (e em `init_db.py` quando rodado direto). Não é preciso rodar
+nenhum comando à mão.
 """
 import sqlite3
 from datetime import datetime

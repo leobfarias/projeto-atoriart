@@ -15,6 +15,7 @@ Regras de estoque:
 from datetime import date, timedelta
 
 from backend.repositories import peca_repository, venda_repository
+from backend.services.form_helpers import data_iso, inteiro, numero
 
 JANELA_DIAS = 30
 
@@ -50,13 +51,13 @@ def formas_pagamento_padrao():
 def validar_form(form_data, pecas_disponiveis):
     erros = {}
 
-    peca_id = _inteiro(form_data.get("peca_id"))
+    peca_id = inteiro(form_data.get("peca_id"))
     pecas_map = {p.id: p for p in pecas_disponiveis}
     peca = pecas_map.get(peca_id) if peca_id else None
     if peca is None:
         erros["peca_id"] = "Escolha uma peça válida."
 
-    quantidade = _inteiro(form_data.get("quantidade"))
+    quantidade = inteiro(form_data.get("quantidade"))
     if quantidade is None or quantidade <= 0:
         erros["quantidade"] = "Quantidade deve ser maior que zero."
     elif peca is not None and quantidade > peca.quantidade_estoque:
@@ -65,12 +66,12 @@ def validar_form(form_data, pecas_disponiveis):
             f"{peca.quantidade_estoque} em estoque."
         )
 
-    valor_total = _numero(form_data.get("valor_total"))
+    valor_total = numero(form_data.get("valor_total"))
     if valor_total is None or valor_total < 0:
         erros["valor_total"] = "Valor deve ser ≥ 0."
 
     data_str = (form_data.get("data") or "").strip()
-    data_valida = _data_iso(data_str)
+    data_valida = data_iso(data_str)
     if data_valida is None:
         erros["data"] = "Informe uma data válida."
 
@@ -107,37 +108,3 @@ def apagar(venda_id):
     return None
 
 
-# ---------- Helpers ----------
-
-def _inteiro(raw):
-    if raw is None:
-        return None
-    raw = str(raw).strip()
-    if not raw:
-        return None
-    try:
-        return int(raw)
-    except ValueError:
-        return None
-
-
-def _numero(raw):
-    if raw is None:
-        return None
-    raw = str(raw).strip().replace(",", ".")
-    if not raw:
-        return None
-    try:
-        return float(raw)
-    except ValueError:
-        return None
-
-
-def _data_iso(raw):
-    if not raw:
-        return None
-    try:
-        date.fromisoformat(raw)
-        return raw
-    except ValueError:
-        return None
