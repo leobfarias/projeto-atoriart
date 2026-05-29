@@ -15,7 +15,7 @@
     <div>
       <h1 class="content__title">Configurações</h1>
       <p class="content__subtitle">
-        Conta administrativa, informações da aplicação e do banco.
+        Informações da sua conta, da aplicação e do banco.
       </p>
     </div>
   </header>
@@ -32,13 +32,17 @@
         <dt>Tipo</dt>
         <dd>Administrador (único)</dd>
       </div>
+      {% if senha_atualizada_em %}
+        <div class="config-item">
+          <dt>Senha atualizada em</dt>
+          <dd>{{ senha_atualizada_em }}</dd>
+        </div>
+      {% endif %}
     </dl>
-    <form method="POST"
-          action="{{ url_for('configuracoes.trocar_senha') }}"
-          class="config-card__acao">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-      <button type="submit" class="btn btn--ghost">Trocar senha</button>
-    </form>
+    <div class="config-card__acao">
+      <a class="btn btn--ghost"
+         href="{{ url_for('configuracoes.trocar_senha') }}">Trocar senha</a>
+    </div>
   </section>
 
   {# ---------- Aplicação ---------- #}
@@ -63,12 +67,12 @@
         <dd>{{ session_minutos }} minutos</dd>
       </div>
       <div class="config-item">
-        <dt>Cookie seguro (HTTPS)</dt>
+        <dt>Conexão segura (HTTPS)</dt>
         <dd>
           {% if cookie_secure %}
-            <span class="badge-cfg badge-cfg--ok">Ativo</span>
+            <span class="badge-cfg badge-cfg--ok">Ativa</span>
           {% else %}
-            <span class="badge-cfg badge-cfg--warning">Desligado</span>
+            <span class="badge-cfg badge-cfg--warning">Desligada</span>
           {% endif %}
         </dd>
       </div>
@@ -78,39 +82,28 @@
   {# ---------- Banco de dados ---------- #}
   <section class="config-card">
     <h2 class="config-card__titulo">Banco de dados</h2>
-    {% if db_existe %}
-      <dl class="config-lista">
-        <div class="config-item">
-          <dt>Local</dt>
-          <dd><code>{{ db_local }}</code></dd>
-        </div>
+    <dl class="config-lista">
+      <div class="config-item">
+        <dt>Status</dt>
+        <dd>
+          {% if db_ativo %}
+            <span class="badge-cfg badge-cfg--ok">Ativo</span>
+          {% else %}
+            <span class="badge-cfg badge-cfg--warning">Indisponível</span>
+          {% endif %}
+        </dd>
+      </div>
+      {% if db_ativo %}
         <div class="config-item">
           <dt>Tamanho</dt>
           <dd>{{ db_tamanho_kb }} KB</dd>
         </div>
         <div class="config-item">
-          <dt>Modificado em</dt>
+          <dt>Última atualização</dt>
           <dd>{{ db_modificado }}</dd>
         </div>
-      </dl>
-      <p class="config-card__nota">
-        Pra recriar o banco do zero, rode no terminal:
-        <code>python database/init_db.py</code>
-      </p>
-      <form method="POST"
-            action="{{ url_for('configuracoes.resetar_banco') }}"
-            class="config-card__acao">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-        <button type="submit" class="btn btn--ghost config-card__btn-danger">
-          Resetar banco
-        </button>
-      </form>
-    {% else %}
-      <p class="config-card__nota">
-        O arquivo do banco ainda não existe.
-        Rode <code>python database/init_db.py</code> no terminal.
-      </p>
-    {% endif %}
+      {% endif %}
+    </dl>
   </section>
 </main>
 {% endblock %}

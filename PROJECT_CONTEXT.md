@@ -363,6 +363,39 @@ ausência da coluna, aplica `ALTER TABLE producao ADD COLUMN custo_unitario`
 e faz backfill dos registros já existentes com o custo atual da view
 (melhor aproximação disponível para o histórico pré-migração).
 
+**Follow-up:** o card equivalente na página de Produção
+(`/producao/`) ficou inicialmente com a fórmula antiga; foi corrigido
+no commit `dacfcdc` para também usar `producao_repository.custo_total_investido()`
+— agora Catálogo e Produção mostram o mesmo número estável.
+
+### Etapa 13 ✅ — Trocar senha pela interface + Configurações em produção
+- **Credencial migrada do `.env` para o banco** (tabela `admin_credencial`,
+  com `username`, `password_hash`, `atualizado_em`). No primeiro boot,
+  `database/db.py._apply_migrations` cria a tabela e faz seed com o hash
+  do `.env`. A partir daí, a tabela é a fonte de verdade. Ver [ADR-014](#adr-014--credencial-do-admin-no-banco-trocar-senha-pela-ui).
+- **Novo repositório:** `backend/repositories/credencial_repository.py`
+  (`get_password_hash`, `atualizar_senha`).
+- **`backend/security.py` ganhou `trocar_senha(username, senha_atual, senha_nova)`**
+  — verifica a senha atual com `check_password_hash` antes de gerar e
+  gravar o novo hash. `authenticate()` agora lê o hash do banco.
+- **Fluxo da UI** (`/configuracoes/trocar-senha`, GET+POST):
+  pede senha atual + nova + confirmação digitada + checkbox de
+  confirmação explícita ("Confirmo que quero trocar minha senha…").
+  Validações: senha atual confere, mínimo 8 caracteres, nova ≠ atual,
+  confirmação bate. Em caso de sucesso: `logout_session()` + redirect
+  pro `/auth/login` com flash de sucesso — força relogin com a senha nova.
+- **Removido o botão "Resetar banco"** da página e a rota
+  `/configuracoes/resetar-banco`: não faz sentido com a app em produção
+  na nuvem (filesystem efêmero do Render); seria perigoso e sem efeito útil.
+- **Página de Configurações em modo produção:** removida a exibição do
+  caminho do arquivo SQLite e a nota "rode `python database/init_db.py`",
+  banco passou a mostrar badge **Ativo/Indisponível**, sessão "Cookie
+  seguro" virou "Conexão segura (HTTPS) Ativa/Desligada", a seção
+  "Sua conta" passou a mostrar **Senha atualizada em** (lido de
+  `admin_credencial.atualizado_em`).
+- **Limpeza de copy técnica:** o estado vazio de `/materiais/` deixou
+  de instruir a rodar comando — agora orienta o botão "Registrar material".
+
 ### Etapa 11.3 ✅ — Consumo de matéria-prima + cadastro por preço total
 - **Consumo automático:** registrar produção agora **debita** os materiais
   da receita da peça (`quantidade_producao × material_qty`) na mesma
@@ -385,8 +418,6 @@ e faz backfill dos registros já existentes com o custo atual da view
 - Ver [ADR-012](#adr-012--produção-consome-matéria-prima--cadastro-por-preço-total).
 
 **Não entregue (intencionalmente):**
-- Trocar senha pela interface (exige mover credencial p/ o DB).
-- Resetar banco pela interface (atualmente: `python database/init_db.py`).
 - Filtro de período nas listagens / relatório (atualmente fixo em 30d).
 
 ---
@@ -410,8 +441,8 @@ e faz backfill dos registros já existentes com o custo atual da view
 | 11.2  | Foto de produto               | Upload de foto opcional por peça; exibida no Catálogo e Produção ✅ |
 | 11.3  | Consumo de matéria-prima      | Produção debita materiais + cadastro por preço total ✅ |
 | 11.4  | Custo investido histórico     | Snapshot `custo_unitario` em `producao`; vitrine imune a vendas ✅ |
+| 13    | Trocar senha pela interface   | Credencial em `admin_credencial`; fluxo com verificação + confirmação ✅ |
 | 12    | Filtro de período             | Seletor 7d / 30d / 90d / custom em vendas/relatórios |
-| 13    | Trocar senha pela interface   | Migrar credencial do `.env` p/ tabela `admin`        |
 
 A cada etapa concluída, atualizar a seção **Estado atual** e o **Roadmap**.
 
@@ -643,6 +674,43 @@ futuros, que sempre gravarão o valor real).
 
 **Trade-off conhecido:** peças sem nenhum material cadastrado terão
 `custo_unitario = 0` — esse caso já ocorria antes (o custo derivado era zero).
+
+### ADR-014 — Credencial do admin no banco; trocar senha pela UI
+
+**Problema:** com a app rodando no Render, a senha estava só no `.env`
+(`ADMIN_PASSWORD_HASH`). Trocar pela UI exigiria reescrever o arquivo —
+inviável porque o filesystem do Render é efêmero (some a cada deploy) e
+porque mistura "configuração de boot" com "estado mutável da aplicação".
+
+**Decisão:** mover a credencial para a tabela `admin_credencial`
+(`username` PK, `password_hash`, `atualizado_em`). O `.env` continua sendo
+o ponto de **seed inicial** — no primeiro boot, `_apply_migrations` cria
+a tabela e insere o hash do `.env` quando a tabela está vazia. Depois
+disso, a tabela é a fonte oficial, e `authenticate()` lê dela.
+
+**Fluxo de troca pela interface (`/configuracoes/trocar-senha`):**
+1. Pede a **senha atual** (verificada com `check_password_hash`).
+2. Pede a nova senha + **confirmação digitada** (devem bater).
+3. Mínimo de 8 caracteres; nova ≠ atual.
+4. **Checkbox de confirmação explícita** marcado obrigatoriamente.
+5. Em caso de sucesso: gera o novo hash com `generate_password_hash`,
+   atualiza `password_hash` e `atualizado_em` no banco, faz
+   `logout_session()` e redireciona pro `/auth/login` com flash de
+   sucesso — força relogin com a nova senha.
+
+**Por que forçar relogin?** Sinaliza explicitamente que a credencial
+mudou e fecha qualquer sessão (em outros dispositivos, etc.) que ainda
+estivesse usando o vínculo com a senha antiga. Custo baixo, ganho de
+clareza alto.
+
+**Botão "Resetar banco" removido:** com a credencial no banco e a app
+em produção, dropar tabelas pela UI é destrutivo demais — qualquer
+manutenção real é feita fora da aplicação.
+
+**Trade-off conhecido:** se o banco for resetado (manualmente ou por
+filesystem efêmero do provedor), a senha **volta** ao hash do `.env`,
+porque o seed roda de novo. Para persistência em produção, configurar
+um disco persistente no Render (ou usar Postgres).
 
 ---
 

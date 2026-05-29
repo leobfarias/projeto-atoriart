@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Trocar senha — AtoriArt{% endblock %}
+{% block body_class %}has-sidebar{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}" />
+{% endblock %}
+
+{% block layout %}
+{% include "_sidebar.html" %}
+
+<main class="content">
+  <header class="content__header">
+    <div>
+      <h1 class="content__title">Trocar senha</h1>
+      <p class="content__subtitle">
+        Confirme sua senha atual e escolha uma nova. Após salvar,
+        você será desconectado e precisará entrar com a nova senha.
+      </p>
+    </div>
+  </header>
+
+  <form method="POST"
+        action="{{ url_for('configuracoes.trocar_senha') }}"
+        class="form-pagina">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+    <div class="campo {% if erros.senha_atual %}campo--erro{% endif %}">
+      <label class="campo__label" for="senha_atual">Senha atual</label>
+      <input class="campo__input" type="password" name="senha_atual" id="senha_atual"
+             autocomplete="current-password" required />
+      {% if erros.senha_atual %}<span class="campo__erro">{{ erros.senha_atual }}</span>{% endif %}
+    </div>
+
+    <div class="campo {% if erros.senha_nova %}campo--erro{% endif %}">
+      <label class="campo__label" for="senha_nova">
+        Nova senha <span class="campo__label-extra">(mínimo 8 caracteres)</span>
+      </label>
+      <input class="campo__input" type="password" name="senha_nova" id="senha_nova"
+             autocomplete="new-password" minlength="8" required />
+      {% if erros.senha_nova %}<span class="campo__erro">{{ erros.senha_nova }}</span>{% endif %}
+    </div>
+
+    <div class="campo {% if erros.senha_nova_confirmacao %}campo--erro{% endif %}">
+      <label class="campo__label" for="senha_nova_confirmacao">Confirme a nova senha</label>
+      <input class="campo__input" type="password"
+             name="senha_nova_confirmacao" id="senha_nova_confirmacao"
+             autocomplete="new-password" minlength="8" required />
+      {% if erros.senha_nova_confirmacao %}<span class="campo__erro">{{ erros.senha_nova_confirmacao }}</span>{% endif %}
+    </div>
+
+    <div class="campo-checkbox {% if erros.confirma_troca %}campo-checkbox--erro{% endif %}">
+      <label class="campo-checkbox__label">
+        <input type="checkbox" name="confirma_troca" value="1"
+               {% if valores.confirma_troca %}checked{% endif %} required />
+        <span>
+          Confirmo que quero trocar minha senha. Sei que vou ser desconectado
+          e que precisarei usar a nova senha para entrar de novo.
+        </span>
+      </label>
+      {% if erros.confirma_troca %}<span class="campo__erro">{{ erros.confirma_troca }}</span>{% endif %}
+    </div>
+
+    <div class="form-acoes">
+      <a class="btn btn--ghost" href="{{ url_for('configuracoes.index') }}">Cancelar</a>
+      <button class="btn btn--primary" type="submit">Salvar nova senha</button>
+    </div>
+  </form>
+</main>
+{% endblock %}

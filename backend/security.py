@@ -4,6 +4,11 @@ Centraliza:
 - decorator `login_required`
 - verificação de credenciais (usuário + hash de senha do admin)
 - emissão e validação de tokens CSRF por sessão
+- troca de senha (verifica a atual antes de gravar a nova)
+
+A credencial do admin vive na tabela `admin_credencial` desde o ADR-014
+(antes ficava só no `.env`). O `.env` continua sendo o ponto inicial
+de seed, mas a interface de troca de senha grava o novo hash no banco.
 """
 from __future__ import annotations
 
@@ -13,7 +18,9 @@ from functools import wraps
 from typing import Callable
 
 from flask import abort, current_app, redirect, request, session, url_for
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
+
+from backend.repositories import credencial_repository
 
 SESSION_USER_KEY = "auth_user"
 SESSION_CSRF_KEY = "_csrf_token"
@@ -39,12 +46,17 @@ def current_user() -> str | None:
 
 
 def authenticate(username: str, password: str) -> bool:
-    """Valida credenciais do admin com comparação em tempo constante."""
+    """Valida credenciais do admin com comparação em tempo constante.
+
+    Lê o hash da tabela `admin_credencial` (populada a partir do .env no
+    primeiro boot). Compara o username em tempo constante e verifica o
+    hash via `werkzeug.security`.
+    """
     expected_user = current_app.config.get("ADMIN_USERNAME", "")
-    expected_hash = current_app.config.get("ADMIN_PASSWORD_HASH", "")
+    expected_hash = credencial_repository.get_password_hash(expected_user)
 
     if not expected_hash:
-        # Sem hash configurado: nega login para evitar bypass em deploys mal feitos.
+        # Sem hash gravado: nega login para evitar bypass em deploys mal feitos.
         return False
 
     user_ok = hmac.compare_digest(
@@ -53,6 +65,21 @@ def authenticate(username: str, password: str) -> bool:
     )
     pass_ok = check_password_hash(expected_hash, password or "")
     return user_ok and pass_ok
+
+
+def trocar_senha(username: str, senha_atual: str, senha_nova: str) -> str | None:
+    """Troca a senha do admin se a senha atual conferir.
+
+    Retorna None se OK; mensagem de erro amigável senão. Quem chama é
+    responsável por já ter validado o formato da nova senha — aqui o foco
+    é só a verificação de identidade + escrita.
+    """
+    hash_atual = credencial_repository.get_password_hash(username)
+    if not hash_atual or not check_password_hash(hash_atual, senha_atual or ""):
+        return "Senha atual incorreta."
+    novo_hash = generate_password_hash(senha_nova)
+    credencial_repository.atualizar_senha(username, novo_hash)
+    return None
 
 
 def login_session(username: str) -> None:

@@ -2,6 +2,7 @@
 -- Rodado por init_db.py. Sempre apaga e recria as tabelas existentes.
 
 DROP VIEW  IF EXISTS vw_peca_custo;
+DROP TABLE IF EXISTS admin_credencial;
 DROP TABLE IF EXISTS despesa;
 DROP TABLE IF EXISTS venda;
 DROP TABLE IF EXISTS producao;
@@ -81,6 +82,15 @@ CREATE TABLE despesa (
     data        TEXT    NOT NULL              -- 'YYYY-MM-DD'
 );
 CREATE INDEX idx_despesa_data ON despesa(data);
+
+-- Credencial do administrador. Movida pro banco (em vez de ficar no
+-- .env) pra permitir trocar a senha pela interface. No primeiro boot
+-- do app, db.py popula a linha com o hash que está no .env. (ADR-014)
+CREATE TABLE admin_credencial (
+    username       TEXT PRIMARY KEY,
+    password_hash  TEXT NOT NULL,
+    atualizado_em  TEXT NOT NULL              -- ISO datetime da última troca
+);
 
 -- Custo de produção de cada peça = soma (quantidade × valor_unitario) dos
 -- materiais que ela consome. É uma VIEW, não uma coluna: o custo é sempre

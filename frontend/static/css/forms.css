@@ -112,6 +112,34 @@
   margin-bottom: 12px;
 }
 
+/* ---------- Campo do tipo checkbox (confirmação inline) ---------- */
+.campo-checkbox {
+  margin: 18px 0 6px;
+  padding: 12px 14px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.campo-checkbox__label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.campo-checkbox__label input[type="checkbox"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.campo-checkbox--erro {
+  border-color: var(--color-danger);
+  background: #fff;
+}
+
 /* ---------- Botões do form (Salvar / Cancelar) ---------- */
 .form-acoes {
   display: flex;

@@ -462,16 +462,16 @@ Arquivo: [backend/security.py](backend/security.py)
 ```python
 def authenticate(username, password):
     expected_user = current_app.config.get("ADMIN_USERNAME", "")
-    expected_hash = current_app.config.get("ADMIN_PASSWORD_HASH", "")
+    expected_hash = credencial_repository.get_password_hash(expected_user)
 
     if not expected_hash:
-        return False  # nega se .env não configurou
+        return False  # sem hash gravado: nega o login
 
     user_ok = hmac.compare_digest(
-        username.encode("utf-8"),
+        (username or "").encode("utf-8"),
         expected_user.encode("utf-8"),
     )
-    pass_ok = check_password_hash(expected_hash, password)
+    pass_ok = check_password_hash(expected_hash, password or "")
     return user_ok and pass_ok
 ```
 
@@ -481,9 +481,15 @@ Um atacante medindo o tempo de resposta pode deduzir letras corretas
 um caractere por vez. `compare_digest` sempre compara em tempo igual.
 
 **Por que hash da senha?**
-Se o `.env` vazar, ainda há custo computacional pra recuperar a senha
+Se o banco vazar, ainda há custo computacional pra recuperar a senha
 original. `werkzeug.security.generate_password_hash` usa algoritmos
 fortes (scrypt ou pbkdf2).
+
+**Onde mora o hash?** Na tabela `admin_credencial` no banco (ADR-014).
+O `.env` continua sendo o **seed inicial**: no primeiro boot,
+`database/db.py._apply_migrations` cria a tabela e copia o
+`ADMIN_PASSWORD_HASH` pra ela. Depois disso a tabela vira a fonte de
+verdade — trocar senha pela UI grava ali, não mexe no `.env`.
 
 ### Decorator `@login_required`
 
@@ -1443,14 +1449,27 @@ Conteúdo:
 **Arquivos:**
 - [backend/blueprints/configuracoes/routes.py](backend/blueprints/configuracoes/routes.py)
 - [backend/services/configuracoes_service.py](backend/services/configuracoes_service.py)
+- [backend/repositories/credencial_repository.py](backend/repositories/credencial_repository.py)
+- [frontend/templates/configuracoes/index.html](frontend/templates/configuracoes/index.html)
+- [frontend/templates/configuracoes/trocar_senha.html](frontend/templates/configuracoes/trocar_senha.html)
 
 3 blocos:
-1. **Sua conta** — usuário, tipo, botão "Trocar senha" (placeholder).
+1. **Sua conta** — usuário, tipo, **senha atualizada em** (vem de
+   `admin_credencial.atualizado_em`) e botão "Trocar senha" que leva
+   para `/configuracoes/trocar-senha`.
 2. **Aplicação** — versão (`__version__`), ambiente, tempo de sessão,
-   status do cookie seguro. Badges visuais.
-3. **Banco de dados** — local, tamanho em KB, data de modificação,
-   botão "Resetar banco" (placeholder + nota orientando rodar
-   `python database/init_db.py`).
+   conexão segura (HTTPS) com badges visuais.
+3. **Banco de dados** — badge **Ativo/Indisponível**, tamanho em KB
+   e última atualização. Sem mais caminho de arquivo ou comando técnico.
+
+**Trocar senha pela UI ([ADR-014](#adr-014--credencial-do-admin-no-banco-trocar-senha-pela-ui)):**
+formulário em [trocar_senha.html](frontend/templates/configuracoes/trocar_senha.html)
+pede senha atual + nova + confirmação digitada + checkbox de
+confirmação explícita. Validação no `configuracoes_service.trocar_senha`:
+senha atual confere, mínimo 8 caracteres, nova ≠ atual, confirmação
+bate. Em caso de sucesso: grava o novo hash em `admin_credencial`,
+desloga o usuário e redireciona pro `/auth/login` — relogin obrigatório
+com a senha nova.
 
 ### 16.9 Despesas — `/despesas/` (CRUD: criar / apagar)
 
@@ -1901,6 +1920,42 @@ combina com a física: insumo gasto não volta.
 **Trade-off:** corrigir uma produção lançada errada requer ajustar
 o estoque do material à mão antes de relançar — apagar não devolve
 o insumo. Aceitável porque combina com a realidade.
+
+### ADR-013 — Snapshot de custo na produção para custo investido histórico
+O card "Custo investido" do Catálogo e da Produção usava
+`Σ peca.custo_producao × peca.quantidade_estoque` — caía a cada venda
+porque o estoque diminuía. **Decisão:** a tabela `producao` ganhou
+`custo_unitario REAL NOT NULL DEFAULT 0`, snapshot do custo da peça
+(lido de `vw_peca_custo`) no momento exato do INSERT. O card passa a
+vir de `producao_repository.custo_total_investido()`:
+```sql
+SELECT COALESCE(SUM(quantidade * custo_unitario), 0) FROM producao
+```
+**Por que snapshot e não recalcular?** A `vw_peca_custo` reflete os
+preços *atuais* dos materiais. Sem snapshot, mudar o preço de um material
+alteraria retroativamente o custo de produções passadas — comportamento
+errado. O snapshot congela o custo no momento real da fabricação.
+**Efeito por operação:** criar produção sobe o total; apagar produção
+desce (o registro some); vender peça não toca `producao` → total não muda
+✓; mudar preço de material não toca registros passados ✓.
+
+### ADR-014 — Credencial do admin no banco; trocar senha pela UI
+A senha estava só no `.env` — impossível trocar pela interface
+(reescrever `.env` é frágil, e no Render o filesystem é efêmero).
+**Decisão:** mover a credencial pra tabela `admin_credencial`
+(`username`, `password_hash`, `atualizado_em`). O `.env` continua sendo
+o **seed inicial**: no primeiro boot, `_apply_migrations` cria a tabela
+e copia o hash do `.env` quando está vazia. Depois, a tabela vira a
+fonte de verdade — `authenticate()` lê dela; trocar senha pela UI grava
+ali.
+**Fluxo de troca:** senha atual (verificada com `check_password_hash`)
++ nova senha + confirmação digitada + checkbox de confirmação +
+mínimo 8 caracteres + nova ≠ atual. Em caso de sucesso, gera novo hash
+com `generate_password_hash`, atualiza o banco, faz `logout_session()`
+e redireciona pro login.
+**Trade-off:** se o banco for resetado, a senha volta ao hash do `.env`.
+Para persistência real, configurar disco persistente no Render
+(ou migrar pra Postgres).
 
 ---
 

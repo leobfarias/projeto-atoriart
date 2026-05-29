@@ -7,6 +7,7 @@ Para criar (ou recriar) o arquivo do banco, rode na raiz do projeto:
     python database/init_db.py
 """
 import sqlite3
+from datetime import datetime
 
 from flask import current_app, g
 
@@ -61,5 +62,33 @@ def _apply_migrations(app):
             WHERE custo_unitario = 0
         """)
         conn.commit()
+
+    # ADR-014 — credencial do admin migrada do .env pra tabela
+    # Cria a tabela se faltar e seeds com o hash atual do .env quando
+    # estiver vazia. Subsequente, a tabela vira a fonte de verdade —
+    # trocar senha pela UI grava aqui.
+    tabela_existe = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='admin_credencial'"
+    ).fetchone() is not None
+    if not tabela_existe:
+        conn.execute("""
+            CREATE TABLE admin_credencial (
+                username       TEXT PRIMARY KEY,
+                password_hash  TEXT NOT NULL,
+                atualizado_em  TEXT NOT NULL
+            )
+        """)
+        conn.commit()
+    vazia = conn.execute("SELECT COUNT(*) FROM admin_credencial").fetchone()[0] == 0
+    if vazia:
+        env_user = app.config.get("ADMIN_USERNAME") or "admin"
+        env_hash = app.config.get("ADMIN_PASSWORD_HASH") or ""
+        if env_hash:
+            conn.execute(
+                "INSERT INTO admin_credencial (username, password_hash, atualizado_em) "
+                "VALUES (?, ?, ?)",
+                (env_user, env_hash, datetime.now().isoformat(timespec="seconds")),
+            )
+            conn.commit()
 
     conn.close()
