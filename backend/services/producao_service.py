@@ -43,9 +43,9 @@ def dados_producao():
         "pecas_estoque": pecas_estoque,
         "modelos_em_estoque": len(pecas_estoque),
         "pecas_em_estoque": sum(p.quantidade_estoque for p in pecas_estoque),
-        "custo_investido": sum(
-            p.custo_producao * p.quantidade_estoque for p in pecas_estoque
-        ),
+        # Histórico (ADR-013): soma do snapshot custo_unitario × quantidade de
+        # TODAS as produções já registradas. Não cai quando vende.
+        "custo_investido": producao_repository.custo_total_investido(),
         # Para o select do form de produção
         "pecas_cadastradas": todas_pecas,
         # Histórico recente
