@@ -35,6 +35,7 @@ publicado na internet, então segurança é prioridade desde a Etapa 1.
 | Banco         | SQLite (módulo `sqlite3` stdlib) |
 | Config        | python-dotenv                    |
 | Segurança     | werkzeug.security, hmac, secrets |
+| Export Excel  | openpyxl (pure-Python, sem binários nativos) |
 
 **Proibido nesta arquitetura:**
 - JavaScript como tecnologia principal de frontend (pequenos enhancements ok
@@ -590,6 +591,50 @@ regra mesmo se alguém POSTar direto, fizer testes automatizados ou
 adicionar outra rota no futuro. Cada camada faz seu trabalho sem
 duplicar lógica.
 
+### Etapa 17 ✅ — Configurações polidas + Exportar relatório (Excel / PDF)
+
+**Configurações — seção "Aplicação" enxuta para a cliente:**
+- Subtítulo explica que são informações do runtime atual.
+- Linha **Status: Online** (badge verde) — confirma que a app está
+  rodando, sem expor jargão técnico (dev vs prod, debug etc.).
+- Nova linha **Hospedagem** aparece quando detecta provedor pela env var
+  (`RENDER` → "Render"; também cobre Heroku e Fly.io). Local: linha
+  não aparece. Detecção em `configuracoes_service._hospedagem()`.
+- **Removidos:** os antigos campos "Ambiente / Modo" (dev vs produção)
+  e "Debug ligado". A cliente não precisa desse vocabulário; com a app
+  já em produção, ele só polui a UI. Quem precisar diagnosticar olha
+  env vars/logs.
+
+**Exportação dos relatórios:**
+- **Excel (`.xlsx`):** novo endpoint `GET /relatorios/exportar.xlsx`
+  que respeita o filtro de `?mes=` ativo. Novo módulo de service
+  [backend/services/relatorios_export.py](backend/services/relatorios_export.py)
+  isola a formatação openpyxl — três abas (Resumo, Peças,
+  Pagamentos) com formato de moeda e cabeçalhos em negrito. O arquivo
+  é gerado em `BytesIO` (memória) e enviado via `send_file` — nada
+  toca o disco. Nome do arquivo carrega o período:
+  `relatorio-2026-05.xlsx` ou `relatorio-ultimos-30-dias.xlsx`.
+- **PDF:** botão "Imprimir / Salvar PDF" chama `window.print()`. CSS
+  `@media print` em `relatorios.css` esconde sidebar, painel de
+  filtros e botões de export; reorganiza cards em 2 colunas; aplica
+  fundo branco. A UX é "salvar como PDF" do próprio diálogo de
+  impressão — zero dependência server-side.
+- **Por que duas estratégias?** Excel pede formatação rica em células
+  e moeda — vale `openpyxl`. PDF, por sua vez, vem de graça do
+  navegador via `window.print()` + `@media print`. Adicionar libs
+  pesadas (weasyprint, reportlab) por um botão temporário seria
+  trade-off ruim, em particular num free tier do Render.
+
+**Nova dependência:** `openpyxl>=3.1,<4.0` em `requirements.txt`.
+Pure-Python, sem deps transitivas com binários nativos — instala bem
+no Render.
+
+**Correção lateral:** o `dia()` em `database/init_db.py` estava
+definido *depois* de ser usado pelo seed de `compra_material` (escopo
+de função do Python pegou `dia` como variável local antes da
+definição → `UnboundLocalError`). Movido para o topo de
+`inserir_dados_exemplo`.
+
 | Etapa | Tema                          | Status                                              |
 |-------|-------------------------------|-----------------------------------------------------|
 | 1     | Fundação                      | App factory, login, dashboard mockado ✅             |
@@ -611,6 +656,7 @@ duplicar lógica.
 | 14    | Limpeza de código             | `form_helpers` partilhado; `extensions.py` removido; docs atualizados ✅ |
 | 15    | Filtro por mês + Lucro líquido | Seletor de mês no `/relatorios/`; card Margem virou Lucro líquido ✅ |
 | 16    | Peça exige matéria-prima      | Guard no `GET` redireciona pra `/materiais/novo` se vazio; validação obriga ≥1 material ✅ |
+| 17    | Configurações polidas + Exportar relatório | "Modo" + Hospedagem em Configurações; export `.xlsx` (openpyxl) + impressão via `window.print()` ✅ |
 | 17    | Histórico de compras de material | Tabela `compra_material`; card e dashboard usam gasto real do período ✅ |
 | 18    | Correção do Lucro Líquido (Relatórios) | Base de custo unificada: `compra_material` em vez de `vw_peca_custo` ✅ |
 

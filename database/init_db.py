@@ -39,11 +39,18 @@ def main(com_exemplos: bool = False):
 
 
 def inserir_dados_exemplo(conn):
+    # Datas relativas a hoje, pra ficarem sempre dentro dos últimos 30 dias.
+    # Definido no topo porque produções, vendas, despesas E compras de
+    # material usam essa helper.
+    hoje = date.today()
+
+    def dia(dias_atras):
+        return (hoje - timedelta(days=dias_atras)).isoformat()
+
     # --- Materiais ---
-    # (nome, unidade, valor_unitario, quantidade_estoque, estoque_minimo)
+    # (nome, unidade, valor_unitario, quantidade_estoque, estoque_minimo, preco_total_lote)
     # Pingente folha e Miçanga olho grego ficam DE PROPÓSITO abaixo do mínimo
     # para exibir o alerta na página de Matéria-prima.
-    # (nome, unidade, valor_unitario, quantidade_estoque, estoque_minimo, preco_total_lote)
     # preco_total_lote = valor_unitario × quantidade comprada originalmente (antes do consumo)
     materiais = [
         ("Linha encerada verde", "m",  0.40, 50, 20,  40.00),
@@ -109,12 +116,6 @@ def inserir_dados_exemplo(conn):
     )
 
     # --- Produções ---
-    # Datas relativas a hoje, pra ficarem sempre dentro dos últimos 30 dias.
-    hoje = date.today()
-
-    def dia(dias_atras):
-        return (hoje - timedelta(days=dias_atras)).isoformat()
-
     # (peca_id, quantidade, data, observacao)
     producoes = [
         (1,  5, dia(1),  None),

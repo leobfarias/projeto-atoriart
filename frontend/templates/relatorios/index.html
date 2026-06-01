@@ -19,6 +19,15 @@
         — {{ total_vendas }} venda{{ 's' if total_vendas != 1 }} registrada{{ 's' if total_vendas != 1 }}.
       </p>
     </div>
+    <div class="content__actions relatorios__exportar">
+      <a class="btn btn--ghost"
+         href="{{ url_for('relatorios.exportar_excel', mes=mes_selecionado) }}">
+        Exportar Excel
+      </a>
+      <button type="button" class="btn btn--ghost" onclick="window.print()">
+        Imprimir / Salvar PDF
+      </button>
+    </div>
   </header>
 
   {# ---------- KPIs gerais (sempre visíveis) ---------- #}

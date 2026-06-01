@@ -48,19 +48,23 @@
   {# ---------- Aplicação ---------- #}
   <section class="config-card">
     <h2 class="config-card__titulo">Aplicação</h2>
+    <p class="config-card__subtitulo">
+      Informações da versão que está rodando agora.
+    </p>
     <dl class="config-lista">
+      <div class="config-item">
+        <dt>Status</dt>
+        <dd><span class="badge-cfg badge-cfg--ok">Online</span></dd>
+      </div>
+      {% if hospedagem %}
+        <div class="config-item">
+          <dt>Hospedagem</dt>
+          <dd>{{ hospedagem }}</dd>
+        </div>
+      {% endif %}
       <div class="config-item">
         <dt>Versão</dt>
         <dd>{{ versao }}</dd>
-      </div>
-      <div class="config-item">
-        <dt>Ambiente</dt>
-        <dd>
-          {{ ambiente }}
-          {% if debug %}
-            <span class="badge-cfg badge-cfg--warning">Debug ligado</span>
-          {% endif %}
-        </dd>
       </div>
       <div class="config-item">
         <dt>Tempo de sessão</dt>

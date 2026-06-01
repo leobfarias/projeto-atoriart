@@ -42,10 +42,9 @@ def coletar_info_sistema():
         ),
         # --- Aplicação ---
         "versao": __version__,
-        "ambiente": _ambiente_legivel(),
-        "debug": bool(config.get("DEBUG")),
         "session_minutos": session_minutos,
         "cookie_secure": bool(config.get("SESSION_COOKIE_SECURE")),
+        "hospedagem": _hospedagem(),
         # --- Banco ---
         "db_ativo": db_path.exists(),
         "db_tamanho_kb": _tamanho_banco_kb(db_path),
@@ -107,9 +106,18 @@ def trocar_senha(username, form_data):
 
 # ---------- Helpers de exibição ----------
 
-def _ambiente_legivel():
-    env = (os.environ.get("FLASK_ENV") or "development").lower()
-    return "Produção" if env == "production" else "Desenvolvimento"
+def _hospedagem():
+    """Detecta o provedor de hospedagem por env vars que ele mesmo seta.
+
+    Devolve uma string amigável ou None (= rodando localmente).
+    """
+    if os.environ.get("RENDER"):
+        return "Render"
+    if os.environ.get("HEROKU_APP_NAME") or os.environ.get("DYNO"):
+        return "Heroku"
+    if os.environ.get("FLY_APP_NAME"):
+        return "Fly.io"
+    return None
 
 
 def _tamanho_banco_kb(db_path: Path) -> float:
