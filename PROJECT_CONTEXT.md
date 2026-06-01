@@ -454,6 +454,9 @@ no commit `dacfcdc` para também usar `producao_repository.custo_total_investido
   *"Lucro bruto − despesas (R$ X,XX)"*.
 - Margem continua aparecendo no ranking por peça e na tabela de
   detalhamento, onde tem sentido contextual.
+- **Nota:** a fórmula do Lucro Líquido foi corrigida na Etapa 18 — ver
+  abaixo. A base de custo passou de `vw_peca_custo` (custo das peças
+  vendidas) para `compra_material` (dinheiro real gasto em materiais).
 
 **Impacto na arquitetura:**
 - `venda_repository.list_vendas(desde, ate)` e
@@ -469,6 +472,92 @@ no commit `dacfcdc` para também usar `producao_repository.custo_total_investido
   combinação pra pouca demanda. Mês + últimos 30d cobre o caso real.
 - Persistência confiável no Render (disco persistente ou Postgres) —
   trade-off conhecido do free tier do Render, documentado no README.
+
+### Etapa 17 ✅ — Histórico de compras de matéria-prima (2026-05-31)
+
+**Problema corrigido (duplo):**
+
+1. **Página `/materiais/`** — o card "Valor Investido em Materiais" exibia
+   `Σ(valor_unitario × quantidade_estoque)`. Esse valor **diminuía** a cada
+   produção que consumia material, como se o dinheiro gasto na compra
+   desaparecesse junto com o insumo usado. Exemplo: comprou 100 m de
+   barbante por R$ 30 → `valor_unitario = 0,30`. Após produzir uma peça que
+   usa 5 m, `quantidade_estoque` cai para 95 → card mostrava R$ 28,50.
+
+2. **Dashboard** — o cálculo de `receita_liquida` subtraía o mesmo
+   `Σ(quantidade_estoque × valor_unitario)` **sem filtro de data** e sobre
+   **todos** os materiais, independentemente de quando foram comprados. Conforme
+   a produção consumia material, esse número caía e a receita líquida subia
+   artificialmente (como se produzir gerasse lucro).
+
+**Solução — nova tabela `compra_material` (ADR-016):**
+
+- Tabela imutável de eventos de compra: `(id, material_id, data, quantidade,
+  preco_total)`. Registra o gasto real em caixa no momento da aquisição.
+- Consumo em produção nunca toca essa tabela → o histórico de gastos é
+  preservado independentemente do estoque restante.
+- `material_repository.gasto_periodo(desde)` → `SELECT SUM(preco_total)
+  FROM compra_material WHERE data >= ?` — mesma semântica de `JANELA_DIAS`
+  dos outros módulos.
+- `JANELA_DIAS = 30` adicionado a `materia_prima_service`, alinhado com
+  `producao_service`, `vendas_service` e `despesas_service`.
+- **Migration automática** em `database/db.py._apply_migrations`: cria a
+  tabela para bancos existentes e faz backfill — um registro por material
+  com `data = date('now')` e `preco_total = valor_unitario × quantidade_estoque`
+  (melhor aproximação disponível do custo histórico).
+- **`validar_form`** passou a incluir `preco_total` no dict `valores` para
+  que `criar` possa repassá-lo ao repositório. `atualizar` filtra esse campo
+  antes de chamar o repositório (editar um material é correção de dados,
+  não uma nova compra).
+- **Label do card** alterado para "Gasto em materiais (30 dias)" para deixar
+  explícito que é o gasto do período, não o valor do estoque atual.
+- **Listagem por material** corrigida: "R$ X investidos" → "R$ X em estoque"
+  (o valor ali ainda é `valor_unitario × quantidade_estoque`, que representa
+  o valor monetário do estoque remanescente daquele material — semântica
+  diferente e correta para esse contexto).
+
+**Impacto transversal:**
+- Dashboard e página de matéria-prima agora usam a **mesma fonte** para o
+  gasto com materiais, sem duplicação de lógica.
+- `init_db.py` atualizado: seed de `compra_material` com preços de lote
+  realistas para os 8 materiais de exemplo.
+
+Ver [ADR-016](#adr-016--histórico-de-compras-de-matéria-prima-tabela-compra_material).
+
+### Etapa 18 ✅ — Correção do Lucro Líquido nos Relatórios (2026-06-01)
+
+**Problema:** o card "Lucro Líquido" do `/relatorios/` usava a fórmula
+`faturamento − custo_producao_das_pecas_vendidas − despesas`. O custo descontado era
+derivado da `vw_peca_custo` × quantidade vendida — o custo **teórico** de fazer as
+peças que saíram naquele período. Isso era inconsistente com o dashboard, que já
+usava `compra_material` (dinheiro real saído do caixa) como base do gasto com
+materiais desde a Etapa 17.
+
+**Efeito concreto do bug:** se o negócio comprou R$30 em material e vendeu uma peça
+por R$50 com custo de produção de R$0,32, o Lucro Líquido mostrava R$19,68 em vez
+de R$20,00 — o sistema deduzia o custo de produção da peça **e** o gasto total em
+materiais ao mesmo tempo.
+
+**Solução:** alinhar o `/relatorios/` com o dashboard usando
+`material_repository.gasto_periodo(desde, ate)` como base de custo do Lucro Líquido.
+
+Nova fórmula do card:
+```
+Lucro Líquido = Faturamento − gasto em compras de materiais (período) − Despesas
+```
+
+**Impacto nos arquivos:**
+- `material_repository.gasto_periodo(desde)` ganhou parâmetro `ate=None` — permite
+  recorte por mês exato (backward-compat: chamadas sem `ate` continuam funcionando,
+  inclusive no dashboard).
+- `relatorios_service.dados_relatorio` importa `material_repository` e usa
+  `gasto_periodo(desde, ate)` no lugar de `sum(v.custo_total for v in vendas)`.
+- `gasto_materiais` foi adicionado ao dict de retorno de `dados_relatorio`.
+- `lucro_bruto` (= faturamento − custo de produção das peças vendidas) permanece no
+  dict e alimenta o ranking por peça e a tabela de detalhamento, onde a pergunta é
+  "quanto lucramos por peça" — lá a base `vw_peca_custo` continua correta.
+
+Ver [ADR-017](#adr-017--base-de-custo-unificada-em-relatórios-compra_material).
 
 ### Etapa 16 ✅ — Peça exige matéria-prima (UX guard + defesa server-side)
 
@@ -522,6 +611,8 @@ duplicar lógica.
 | 14    | Limpeza de código             | `form_helpers` partilhado; `extensions.py` removido; docs atualizados ✅ |
 | 15    | Filtro por mês + Lucro líquido | Seletor de mês no `/relatorios/`; card Margem virou Lucro líquido ✅ |
 | 16    | Peça exige matéria-prima      | Guard no `GET` redireciona pra `/materiais/novo` se vazio; validação obriga ≥1 material ✅ |
+| 17    | Histórico de compras de material | Tabela `compra_material`; card e dashboard usam gasto real do período ✅ |
+| 18    | Correção do Lucro Líquido (Relatórios) | Base de custo unificada: `compra_material` em vez de `vw_peca_custo` ✅ |
 
 A cada etapa concluída, atualizar a seção **Estado atual** e o **Roadmap**.
 
@@ -807,6 +898,117 @@ filesystem efêmero do provedor), a senha **volta** ao hash do `.env`,
 porque o seed roda de novo. Para persistência em produção, configurar
 um disco persistente no Render (ou usar Postgres).
 
+### ADR-016 — Histórico de compras de matéria-prima: tabela `compra_material`
+
+**Data:** 2026-05-31
+
+**Problema raiz:** o sistema não tinha registro do **evento de compra** de
+matéria-prima — só o estado atual do estoque (`quantidade_estoque`) e o custo
+por unidade (`valor_unitario`). O "gasto com materiais" era derivado
+dinamicamente como `Σ(valor_unitario × quantidade_estoque)`, que é o *valor
+monetário do estoque restante*, não o *dinheiro que saiu do caixa* na compra.
+
+Isso causava dois bugs relacionados:
+
+1. **Página `/materiais/`** — card "Valor Investido em Materiais" caía a cada
+   produção que consumia material (o dinheiro gasto "sumia" junto com o insumo).
+2. **Dashboard** — `receita_liquida` subia artificialmente quando a produção
+   consumia materiais, porque o mesmo `Σ(valor_unitario × quantidade_estoque)`
+   (sem filtro de período) entrava na subtração.
+
+**Decisão:** adicionar a tabela `compra_material` como **diário imutável de
+aquisições**, no mesmo espírito do snapshot `producao.custo_unitario`
+([ADR-013](#adr-013--snapshot-de-custo-na-produção-para-custo-investido-histórico)):
+gravar o fato econômico no momento em que ele ocorre, de forma que eventos
+posteriores (consumo, mudança de preço) não o alterem.
+
+```sql
+CREATE TABLE compra_material (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    material_id  INTEGER NOT NULL,
+    data         TEXT    NOT NULL,   -- 'YYYY-MM-DD'
+    quantidade   REAL    NOT NULL,
+    preco_total  REAL    NOT NULL,   -- dinheiro pago pelo lote
+    FOREIGN KEY (material_id) REFERENCES material(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_compra_material_data ON compra_material(data);
+```
+
+**Regras de escrita:**
+
+| Operação | Efeito em `compra_material` |
+|---|---|
+| Cadastrar material (`criar`) | INSERT com data de hoje, `quantidade` e `preco_total` do form |
+| Editar material (`atualizar`) | **Nenhum** — edição corrige dados cadastrais, não é nova compra |
+| Apagar material | Cascade apaga os registros (ON DELETE CASCADE) |
+| Produzir (consumir material) | **Nenhum** — gasto em caixa já ocorreu na compra |
+
+**`material_repository.gasto_periodo(desde)`** — única função de leitura:
+
+```sql
+SELECT COALESCE(SUM(preco_total), 0)
+FROM compra_material
+WHERE data >= :desde
+```
+
+Usada por `/materiais/` (card de 30 dias) e pelo dashboard (receita líquida),
+eliminando a duplicação de lógica entre as duas páginas.
+
+**Ajuste no service de matéria-prima:**
+
+- `validar_form` passou a incluir `preco_total` no dict `valores` devolvido.
+  O repositório `criar` recebe o campo por `**v` — zero mudança na interface
+  do blueprint.
+- `atualizar` extrai apenas os cinco campos que o repositório aceita, ignorando
+  `preco_total` — isso é intencional: editar não é comprar.
+- `JANELA_DIAS = 30` adicionado ao topo do módulo, alinhado com os outros três
+  services que já o definem localmente.
+
+**Migration:** `database/db.py._apply_migrations` cria a tabela quando ausente
+e faz backfill — um registro por material existente com `data = date('now')` e
+`preco_total = valor_unitario × quantidade_estoque`. É uma aproximação: não
+sabemos a data original da compra nem se o estoque atual reflete a quantidade
+comprada (parte pode ter sido consumida antes da migração). O erro é aceito
+como trade-off único da migração; compras futuras serão sempre exatas.
+
+**Restrição futura conhecida:** editar um material para "repor estoque" (aumentar
+`quantidade_estoque` manualmente) não gera um registro de compra. Para reposições
+reais, o fluxo correto é apagar o material e recadastrá-lo — ou, futuramente,
+adicionar uma ação dedicada "Reabastecer" que chame `registrar_compra` explicitamente.
+
+### ADR-017 — Base de custo unificada em Relatórios: `compra_material` em vez de `vw_peca_custo`
+
+**Data:** 2026-06-01
+
+**Problema:** `/relatorios/` e dashboard usavam fontes diferentes para "gasto com materiais":
+- **Dashboard** (desde Etapa 17): `material_repository.gasto_periodo` →
+  `SUM(compra_material.preco_total)` — dinheiro real saído do caixa na compra.
+- **Relatórios** (Etapa 15 original): `Σ(v.custo_total)` = `Σ(qtd_vendida ×
+  custo_unitário_peça via vw_peca_custo)` — custo teórico de produção das
+  peças vendidas.
+
+As duas métricas respondem perguntas distintas:
+- `Σ(v.custo_total)` → "quanto custou em matéria-prima **fazer** as peças que vendi".
+- `compra_material.preco_total` → "quanto dinheiro **saiu do caixa** comprando material".
+
+Para o card de Lucro Líquido, a pergunta correta é a segunda. Usar o custo de produção
+das vendas gerava dupla penalidade: o sistema subtraía ao mesmo tempo o custo teórico
+da peça E o gasto real com materiais do período.
+
+**Decisão:** o `/relatorios/` passa a usar `material_repository.gasto_periodo(desde, ate)`
+para o Lucro Líquido, alinhando com o dashboard e tornando as duas páginas
+semanticamente consistentes sobre o que é "gasto com materiais".
+
+O `lucro_bruto` (faturamento − custo de produção das vendas) permanece nos cálculos
+intermediários porque é a métrica correta para o **ranking por peça** e a
+**tabela de detalhamento** — onde a pergunta é "quanto lucramos por peça específica"
+e o custo unitário da `vw_peca_custo` tem sentido.
+
+**Consequência arquitetural:** Lucro Líquido e Lucro Bruto deixam de ter relação
+algébrica direta (`Lucro Líquido ≠ Lucro Bruto − Despesas`) — usam bases de custo
+diferentes. Isso é correto semanticamente, mas o template deve deixar a distinção
+clara nos hints dos cards para não confundir.
+
 ### ADR-015 — Rota `/ping` anti-suspend do Render fora do padrão de blueprints
 
 **Problema:** o free tier do Render hiberna a app após ~15 min sem
@@ -858,4 +1060,10 @@ no `run.py` e desligar o monitor externo. ~6 linhas no total.
 - **Preço de venda:** preço sugerido de venda da peça, definido pelo
   usuário. **Lucro da peça** = preço de venda − custo de produção.
 - **Faturamento:** soma bruta de vendas no período.
-- **Receita líquida:** faturamento − despesas no período.
+- **Lucro bruto:** faturamento − custo de produção das peças vendidas (via `vw_peca_custo`).
+  Usado no ranking por peça e na tabela de detalhamento do `/relatorios/`.
+- **Lucro líquido:** faturamento − gasto real em compras de materiais (`compra_material`)
+  − despesas do período. É o "dinheiro no bolso" após todos os desembolsos.
+- **Receita líquida:** faturamento − despesas do período (exibida no dashboard).
+  Nota: receita líquida e lucro líquido diferem — o lucro líquido subtrai também o
+  gasto com materiais.

@@ -41,7 +41,9 @@ def get_material(material_id):
     return _row_to_material(r) if r is not None else None
 
 
-def criar(nome, unidade, valor_unitario, quantidade_estoque, estoque_minimo):
+def criar(nome, unidade, valor_unitario, quantidade_estoque, estoque_minimo,
+          preco_total):
+    from datetime import date
     db = get_db()
     cursor = db.execute(
         "INSERT INTO material "
@@ -49,8 +51,25 @@ def criar(nome, unidade, valor_unitario, quantidade_estoque, estoque_minimo):
         "VALUES (?, ?, ?, ?, ?)",
         (nome, unidade, valor_unitario, quantidade_estoque, estoque_minimo),
     )
+    db.execute(
+        "INSERT INTO compra_material (material_id, data, quantidade, preco_total) "
+        "VALUES (?, ?, ?, ?)",
+        (cursor.lastrowid, date.today().isoformat(), quantidade_estoque, preco_total),
+    )
     db.commit()
     return cursor.lastrowid
+
+
+def gasto_periodo(desde, ate=None):
+    """Soma dos preços pagos em compras de matéria-prima a partir de `desde` (inclusive)."""
+    db = get_db()
+    sql = "SELECT COALESCE(SUM(preco_total), 0) FROM compra_material WHERE data >= ?"
+    params = [desde]
+    if ate:
+        sql += " AND data <= ?"
+        params.append(ate)
+    r = db.execute(sql, params).fetchone()
+    return r[0]
 
 
 def atualizar(material_id, nome, unidade, valor_unitario,

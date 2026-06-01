@@ -8,6 +8,7 @@ DROP TABLE IF EXISTS venda;
 DROP TABLE IF EXISTS producao;
 DROP TABLE IF EXISTS peca_material;
 DROP TABLE IF EXISTS peca;
+DROP TABLE IF EXISTS compra_material;
 DROP TABLE IF EXISTS material;
 
 CREATE TABLE material (
@@ -18,6 +19,19 @@ CREATE TABLE material (
     quantidade_estoque  REAL    NOT NULL DEFAULT 0,  -- estoque atual
     estoque_minimo      REAL    NOT NULL DEFAULT 0   -- gatilho de alerta
 );
+
+-- Histórico imutável de compras de matéria-prima. Um registro por compra.
+-- Nunca diminui quando a produção consome o material: registra o gasto
+-- real em caixa no momento da aquisição. (ADR-016-b)
+CREATE TABLE compra_material (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    material_id  INTEGER NOT NULL,
+    data         TEXT    NOT NULL,   -- 'YYYY-MM-DD'
+    quantidade   REAL    NOT NULL,
+    preco_total  REAL    NOT NULL,
+    FOREIGN KEY (material_id) REFERENCES material(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_compra_material_data ON compra_material(data);
 
 -- `preco_venda` é o preço sugerido de venda (digitado pelo usuário).
 -- O custo de produção NÃO é coluna: é derivado dos materiais pela

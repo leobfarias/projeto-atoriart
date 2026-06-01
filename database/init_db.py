@@ -43,21 +43,34 @@ def inserir_dados_exemplo(conn):
     # (nome, unidade, valor_unitario, quantidade_estoque, estoque_minimo)
     # Pingente folha e Miçanga olho grego ficam DE PROPÓSITO abaixo do mínimo
     # para exibir o alerta na página de Matéria-prima.
+    # (nome, unidade, valor_unitario, quantidade_estoque, estoque_minimo, preco_total_lote)
+    # preco_total_lote = valor_unitario × quantidade comprada originalmente (antes do consumo)
     materiais = [
-        ("Linha encerada verde", "m",  0.40, 50, 20),
-        ("Argola dourada 10mm",  "un", 0.80, 24, 10),
-        ("Pingente folha",       "un", 1.50,  6, 10),   # alerta
-        ("Pedra de quartzo",     "un", 6.00,  8,  5),
-        ("Cordão de algodão",    "m",  0.30, 30, 15),
-        ("Fecho de pressão",     "un", 1.20, 12,  8),
-        ("Argola chaveiro",      "un", 0.70, 28, 10),
-        ("Miçanga olho grego",   "un", 0.50, 30, 40),   # alerta
+        ("Linha encerada verde", "m",  0.40, 50, 20,  40.00),
+        ("Argola dourada 10mm",  "un", 0.80, 24, 10,  20.00),
+        ("Pingente folha",       "un", 1.50,  6, 10,  15.00),   # alerta
+        ("Pedra de quartzo",     "un", 6.00,  8,  5,  60.00),
+        ("Cordão de algodão",    "m",  0.30, 30, 15,  15.00),
+        ("Fecho de pressão",     "un", 1.20, 12,  8,  18.00),
+        ("Argola chaveiro",      "un", 0.70, 28, 10,  22.40),
+        ("Miçanga olho grego",   "un", 0.50, 30, 40,  25.00),   # alerta
     ]
     conn.executemany(
         "INSERT INTO material "
         "(nome, unidade, valor_unitario, quantidade_estoque, estoque_minimo) "
         "VALUES (?, ?, ?, ?, ?)",
-        materiais,
+        [(m[0], m[1], m[2], m[3], m[4]) for m in materiais],
+    )
+
+    # Registra a compra inicial de cada material (distribuída nos últimos 30 dias)
+    compras_materiais = [
+        (i + 1, dia(28 - i * 3), m[3], m[5])
+        for i, m in enumerate(materiais)
+    ]
+    conn.executemany(
+        "INSERT INTO compra_material (material_id, data, quantidade, preco_total) "
+        "VALUES (?, ?, ?, ?)",
+        compras_materiais,
     )
 
     # --- Peças ---

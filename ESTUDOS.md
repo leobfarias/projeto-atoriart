@@ -1448,10 +1448,10 @@ Cartão débito).
 - [backend/blueprints/relatorios/routes.py](backend/blueprints/relatorios/routes.py)
 - [backend/services/relatorios_service.py](backend/services/relatorios_service.py)
 
-**Sem repository próprio.** Consome `venda_repository.list_vendas()`
-e `despesa_repository.list_despesas()`. As queries de recorte
-(matéria-prima, peça, forma de pagamento) usam SQL inline via `get_db()`
-— exceção arquitetural documentada no docstring do service.
+**Repositórios consumidos:** `venda_repository.list_vendas()`,
+`despesa_repository.list_despesas()` e `material_repository.gasto_periodo()`.
+As queries de recorte (matéria-prima, peça, forma de pagamento) usam SQL
+inline via `get_db()` — exceção arquitetural documentada no docstring do service.
 
 **Filtros disponíveis:**
 - **Período:** "Últimos 30 dias" (default) ou um mês específico
@@ -1463,12 +1463,24 @@ e `despesa_repository.list_despesas()`. As queries de recorte
 
 **Conteúdo (consolidado):**
 - 4 cards: faturamento, custo de produção, **lucro bruto** e
-  **lucro líquido** (= lucro bruto − despesas do período;
-  *"quanto dinheiro fica no bolso"*).
+  **lucro líquido**.
 - **Top 5 peças mais lucrativas** (ranking).
 - **Distribuição por forma de pagamento** — usa `<meter>` HTML5.
 - **Tabela detalhada por peça** com colunas (vendas, qtd, faturamento,
   custo, lucro, margem).
+
+**Como lucro bruto e lucro líquido diferem nesta página:**
+
+| Métrica | Fórmula | Para que serve |
+|---|---|---|
+| Lucro bruto | `faturamento − Σ(qtd_vendida × custo_peça)` | Ranking e tabela por peça |
+| Lucro líquido | `faturamento − gasto_materiais_periodo − despesas` | Card "quanto sobrou no caixa" |
+
+O **lucro bruto** usa `vw_peca_custo` (custo teórico por peça) e responde
+"quanto lucramos em cima de cada item vendido". O **lucro líquido** usa
+`compra_material.preco_total` (dinheiro real desembolsado na compra de insumos)
+e responde "quanto sobrou no caixa depois de todos os gastos". As duas bases
+de custo são diferentes por design — ver ADR-017.
 
 ### 16.8 Configurações — `/configuracoes/`
 

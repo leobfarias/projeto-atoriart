@@ -23,7 +23,7 @@ de relatório que não pertencem a nenhum repositório geral).
 from datetime import date, timedelta
 
 from database.db import get_db
-from backend.repositories import despesa_repository, venda_repository
+from backend.repositories import despesa_repository, material_repository, venda_repository
 
 JANELA_DIAS = 30
 
@@ -91,7 +91,8 @@ def dados_relatorio(mes=None):
     custo_total = sum(v.custo_total for v in vendas)
     lucro_bruto = faturamento - custo_total
     total_despesas = sum(d.valor for d in despesas)
-    lucro_liquido = lucro_bruto - total_despesas
+    gasto_materiais = material_repository.gasto_periodo(desde, ate)
+    lucro_liquido = faturamento - gasto_materiais - total_despesas
 
     pecas_ranking = _ranking_por_peca(vendas)
     formas_pagamento = _distribuicao_por_pagamento(vendas, faturamento)
@@ -104,6 +105,7 @@ def dados_relatorio(mes=None):
         "custo_total": custo_total,
         "lucro_bruto": lucro_bruto,
         "total_despesas": total_despesas,
+        "gasto_materiais": gasto_materiais,
         "lucro_liquido": lucro_liquido,
         "top_pecas": pecas_ranking[:5],
         "pecas_detalhe": pecas_ranking,

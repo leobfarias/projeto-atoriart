@@ -13,15 +13,20 @@ silenciosamente (`preco_total / quantidade_estoque`) e gravado em
 `material.valor_unitario`. É esse `valor_unitario` que alimenta a view
 `vw_peca_custo` e, portanto, o custo de produção das peças.
 """
+from datetime import date, timedelta
+
 from backend.repositories import material_repository
 from backend.services.form_helpers import numero
 
+JANELA_DIAS = 30
 
-# ---------- Listagem (já existia) ----------
+
+# ---------- Listagem ----------
 
 def dados_materia_prima():
     materiais = material_repository.list_materiais()
     materiais_alerta = [m for m in materiais if m.em_alerta]
+    desde = (date.today() - timedelta(days=JANELA_DIAS)).isoformat()
 
     return {
         "materiais": materiais,
@@ -29,7 +34,8 @@ def dados_materia_prima():
         "total_cadastrados": len(materiais),
         "total_ok": len(materiais) - len(materiais_alerta),
         "total_alerta": len(materiais_alerta),
-        "valor_investido": sum(m.valor_estoque for m in materiais),
+        "valor_investido": material_repository.gasto_periodo(desde),
+        "janela_dias": JANELA_DIAS,
     }
 
 
@@ -83,6 +89,7 @@ def validar_form(form_data):
         "valor_unitario": valor_unitario,
         "quantidade_estoque": quantidade_estoque or 0.0,
         "estoque_minimo": estoque_minimo or 0.0,
+        "preco_total": preco_total or 0.0,
     }
     return erros, valores
 
@@ -101,7 +108,9 @@ def atualizar(material_id, form_data):
     erros, v = validar_form(form_data)
     if erros:
         return erros, None
-    material_repository.atualizar(material_id, **v)
+    campos = {k: v[k] for k in ("nome", "unidade", "valor_unitario",
+                                 "quantidade_estoque", "estoque_minimo")}
+    material_repository.atualizar(material_id, **campos)
     return {}, None
 
 

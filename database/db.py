@@ -94,4 +94,35 @@ def _apply_migrations(app):
             )
             conn.commit()
 
+    # ADR-016-b — tabela compra_material para histórico de gastos com matéria-prima.
+    # Backfill: cria um registro por material existente usando o valor do estoque
+    # atual como aproximação do custo original (melhor dado disponível).
+    tabela_compra = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='compra_material'"
+    ).fetchone() is not None
+    if not tabela_compra:
+        conn.execute("""
+            CREATE TABLE compra_material (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                material_id  INTEGER NOT NULL,
+                data         TEXT    NOT NULL,
+                quantidade   REAL    NOT NULL,
+                preco_total  REAL    NOT NULL,
+                FOREIGN KEY (material_id) REFERENCES material(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute(
+            "CREATE INDEX idx_compra_material_data ON compra_material(data)"
+        )
+        conn.execute("""
+            INSERT INTO compra_material (material_id, data, quantidade, preco_total)
+            SELECT id,
+                   date('now'),
+                   quantidade_estoque,
+                   valor_unitario * quantidade_estoque
+            FROM material
+            WHERE quantidade_estoque > 0
+        """)
+        conn.commit()
+
     conn.close()
