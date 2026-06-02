@@ -74,6 +74,21 @@ def custo_total_investido():
     return r[0]
 
 
+def custo_producoes_periodo(desde, ate):
+    """Soma de (quantidade × custo_unitario) das produções no intervalo [desde, ate].
+
+    Inclui todas as peças produzidas no período, independentemente de terem
+    sido vendidas. Usa o snapshot de custo gravado no momento da fabricação.
+    """
+    db = get_db()
+    r = db.execute(
+        "SELECT COALESCE(SUM(quantidade * custo_unitario), 0) FROM producao "
+        "WHERE data >= ? AND data <= ?",
+        (desde, ate),
+    ).fetchone()
+    return r[0]
+
+
 # ---------- Escrita (com efeito no estoque) ----------
 
 def criar(peca_id, quantidade, data, observacao):

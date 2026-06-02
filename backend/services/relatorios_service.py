@@ -23,7 +23,7 @@ de relatório que não pertencem a nenhum repositório geral).
 from datetime import date, timedelta
 
 from database.db import get_db
-from backend.repositories import despesa_repository, material_repository, venda_repository
+from backend.repositories import despesa_repository, material_repository, producao_repository, venda_repository
 
 JANELA_DIAS = 30
 
@@ -88,7 +88,7 @@ def dados_relatorio(mes=None):
     despesas = despesa_repository.list_despesas(desde=desde, ate=ate)
 
     faturamento = sum(v.valor_total for v in vendas)
-    custo_total = sum(v.custo_total for v in vendas)
+    custo_total = producao_repository.custo_producoes_periodo(desde, ate)
     lucro_bruto = faturamento - custo_total
     total_despesas = sum(d.valor for d in despesas)
     gasto_materiais = material_repository.gasto_periodo(desde, ate)
