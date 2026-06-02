@@ -320,3 +320,37 @@
   color: var(--color-success);
   font-weight: 500;
 }
+
+/* ============================================================
+   Impressão / Salvar como PDF
+   O botão "Imprimir / Salvar PDF" chama window.print(); essas
+   regras escondem a UI navegacional e ajustam o layout para
+   caber numa folha A4 limpa.
+   ============================================================ */
+@media print {
+  body.has-sidebar { display: block; }
+  body { background: #fff; color: #000; }
+  .sidebar,
+  .filtro-painel,
+  .relatorios__exportar,
+  .flash-list { display: none !important; }
+
+  .content { padding: 0; max-width: 100%; }
+  .content__title { font-size: 1.4rem; }
+
+  .cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .card { box-shadow: none; border-color: #999; }
+
+  .relatorio-secao,
+  .filtro-resultado {
+    page-break-inside: avoid;
+    margin-top: 18px;
+  }
+
+  .tabela-pecas { font-size: 0.85rem; }
+  .meter, meter { display: none; }     /* barras nativas não imprimem bem */
+}

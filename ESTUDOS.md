@@ -1482,6 +1482,19 @@ O **lucro bruto** usa `vw_peca_custo` (custo teórico por peça) e responde
 e responde "quanto sobrou no caixa depois de todos os gastos". As duas bases
 de custo são diferentes por design — ver ADR-017.
 
+**Exportação:** dois botões no cabeçalho da página.
+- **Exportar Excel:** link para `GET /relatorios/exportar.xlsx[?mes=...]`
+  — preserva o filtro de período. A rota usa
+  [backend/services/relatorios_export.py](backend/services/relatorios_export.py),
+  que constrói um workbook (`openpyxl`) em memória com 3 abas (Resumo,
+  Peças, Pagamentos) e o envia via `send_file`. Nenhum arquivo toca o
+  disco.
+- **Imprimir / Salvar PDF:** chama `window.print()` direto. CSS
+  `@media print` em `relatorios.css` esconde a sidebar, painel de
+  filtros e botões; reorganiza os cards em 2 colunas; aplica fundo
+  branco. O usuário escolhe "Salvar como PDF" no diálogo nativo do
+  navegador — zero dependência server-side.
+
 ### 16.8 Configurações — `/configuracoes/`
 
 **Arquivos:**
@@ -1495,8 +1508,12 @@ de custo são diferentes por design — ver ADR-017.
 1. **Sua conta** — usuário, tipo, **senha atualizada em** (vem de
    `admin_credencial.atualizado_em`) e botão "Trocar senha" que leva
    para `/configuracoes/trocar-senha`.
-2. **Aplicação** — versão (`__version__`), ambiente, tempo de sessão,
-   conexão segura (HTTPS) com badges visuais.
+2. **Aplicação** — subtítulo descritivo, **Status: Online** (badge
+   verde fixo — confirma à cliente que a app está rodando),
+   **Hospedagem** (aparece só quando detecta provedor via env var:
+   `RENDER`, `DYNO`, `FLY_APP_NAME`), versão (`__version__`), tempo de
+   sessão e conexão segura (HTTPS). Sem campos de dev/debug —
+   diagnóstico técnico fica fora desta página.
 3. **Banco de dados** — badge **Ativo/Indisponível**, tamanho em KB
    e última atualização. Sem mais caminho de arquivo ou comando técnico.
 

@@ -5,13 +5,16 @@ GET /relatorios/?mes=2026-05            — mês específico
 GET /relatorios/?filtro=materia_prima&material_id=X[&mes=YYYY-MM]
 GET /relatorios/?filtro=forma_pagamento&forma=PIX[&mes=YYYY-MM]
 GET /relatorios/?filtro=peca&peca_id=X[&mes=YYYY-MM]
+GET /relatorios/exportar.xlsx[?mes=YYYY-MM]
+    — baixa o consolidado em Excel (Resumo + Peças + Pagamentos).
 
 Sem ações de escrita — relatório é visão de leitura.
 """
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, send_file
 
 from backend.security import login_required
 from backend.repositories import material_repository, peca_repository
+from backend.services.relatorios_export import gerar_xlsx
 from backend.services.relatorios_service import (
     dados_relatorio,
     formas_pagamento_disponiveis,
@@ -55,4 +58,20 @@ def index():
         peca_id=peca_id,
         forma=forma,
         dados_filtro=dados_filtro,
+    )
+
+
+@relatorios_bp.route("/exportar.xlsx")
+@login_required
+def exportar_excel():
+    """Devolve o consolidado em .xlsx, preservando o período selecionado."""
+    mes = request.args.get("mes", "")
+    dados = dados_relatorio(mes=mes or None)
+    arquivo = gerar_xlsx(dados)
+    nome = f"relatorio-{mes or 'ultimos-30-dias'}.xlsx"
+    return send_file(
+        arquivo,
+        as_attachment=True,
+        download_name=nome,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
