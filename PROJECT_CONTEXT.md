@@ -525,6 +525,39 @@ no commit `dacfcdc` para também usar `producao_repository.custo_total_investido
 
 Ver [ADR-016](#adr-016--histórico-de-compras-de-matéria-prima-tabela-compra_material).
 
+### Etapa 19 ✅ — Backup e restauração do banco (2026-06-03)
+
+**Funcionalidade:** a página `/configuracoes/` ganhou um bloco "Backup e restauração"
+dentro da seção "Banco de dados" com duas ações:
+
+1. **Baixar backup** — `GET /configuracoes/backup` gera um `.zip` com o banco atual
+   (`atoriart.sqlite3`) diretamente em memória (sem gravação em disco) e serve como
+   download com nome `atoriart_backup_YYYY-MM-DD.zip`.
+2. **Restaurar banco** — `POST /configuracoes/restaurar` aceita um arquivo `.sqlite3`
+   ou `.zip`, valida antes de substituir e aplica o backup se aprovado.
+
+**Validação do arquivo restaurado (em duas etapas antes de substituir):**
+- Tamanho máximo: 20 MB.
+- Arquivo deve ser um SQLite válido (`sqlite3.connect` não pode lançar `DatabaseError`).
+- Deve conter todas as tabelas obrigatórias: `peca`, `material`, `peca_material`,
+  `producao`, `venda`, `despesa`, `compra_material`, `admin_credencial`.
+- Arquivo temporário (`tempfile`) é usado para validação — o banco atual só é
+  substituído se as verificações passarem; se falhar, banco original é preservado.
+
+**Arquivos modificados:**
+- `backend/services/configuracoes_service.py` — funções `gerar_backup()`,
+  `restaurar_backup(arquivo)`, `_extrair_sqlite()`, `_validar_sqlite()` e constantes
+  `TABELAS_OBRIGATORIAS`, `TAMANHO_MAXIMO_BYTES`.
+- `backend/blueprints/configuracoes/routes.py` — rotas `/backup` (GET) e
+  `/restaurar` (POST com CSRF).
+- `frontend/templates/configuracoes/index.html` — bloco `.config-backup` com botão
+  de download e formulário de restauração com aviso de atenção.
+- `frontend/static/css/configuracoes.css` — classes `.config-backup*` e `.btn--danger`.
+
+**Aviso documentado ao usuário:** restaurar um backup que continha uma senha diferente
+faz o sistema voltar para a senha antiga (o hash de `admin_credencial` é restaurado
+junto com o restante dos dados).
+
 ### Etapa 18 ✅ — Correção do Lucro Líquido nos Relatórios (2026-06-01)
 
 **Problema:** o card "Lucro Líquido" do `/relatorios/` usava a fórmula
@@ -659,6 +692,7 @@ definição → `UnboundLocalError`). Movido para o topo de
 | 17    | Configurações polidas + Exportar relatório | "Modo" + Hospedagem em Configurações; export `.xlsx` (openpyxl) + impressão via `window.print()` ✅ |
 | 17    | Histórico de compras de material | Tabela `compra_material`; card e dashboard usam gasto real do período ✅ |
 | 18    | Correção do Lucro Líquido (Relatórios) | Base de custo unificada: `compra_material` em vez de `vw_peca_custo` ✅ |
+| 19    | Backup e restauração do banco | Download ZIP + restauração com validação em `/configuracoes/` ✅ |
 
 A cada etapa concluída, atualizar a seção **Estado atual** e o **Roadmap**.
 
@@ -1021,6 +1055,34 @@ como trade-off único da migração; compras futuras serão sempre exatas.
 `quantidade_estoque` manualmente) não gera um registro de compra. Para reposições
 reais, o fluxo correto é apagar o material e recadastrá-lo — ou, futuramente,
 adicionar uma ação dedicada "Reabastecer" que chame `registrar_compra` explicitamente.
+
+### ADR-018 — Backup em memória; validação com arquivo temporário antes de restaurar
+
+**Data:** 2026-06-03
+
+**Contexto:** a funcionalidade de backup/restauração precisa ser segura em dois sentidos:
+(a) o download não deve gravar arquivos extras no servidor; (b) a restauração não deve
+corromper o banco atual caso o arquivo enviado seja inválido ou incompleto.
+
+**Decisão (backup):** usar `io.BytesIO` para compactar o `.sqlite3` em memória com
+`zipfile.ZipFile`. O buffer é servido diretamente pelo `send_file` do Flask sem tocar
+o disco. Motivo: no Render (free tier) o filesystem é efêmero e gravar um arquivo
+temporário de backup não agrega valor; em memória é mais rápido e sem side effects.
+
+**Decisão (restauração):** salvar o arquivo recebido em `tempfile.NamedTemporaryFile`
+e realizar **todas** as validações (magic bytes SQLite, presença das tabelas
+obrigatórias) antes de executar `shutil.copy2` sobre o banco atual. O arquivo
+temporário é deletado no bloco `finally` independentemente do resultado. Só após
+a validação completa o banco original é sobrescrito — se qualquer verificação
+falhar, o banco fica intacto e o usuário vê o erro via flash.
+
+**Por que `shutil.copy2` e não renomear?** O banco pode estar num filesystem
+diferente do diretório temporário — `os.rename` falha entre filesystems. `copy2`
+copia o conteúdo e preserva metadados, funcionando em qualquer configuração.
+
+**Trade-off conhecido:** restaurar um backup antigo desfaz alterações de senha
+feitas depois do backup (a tabela `admin_credencial` é restaurada junto). O flash
+de sucesso adverte o usuário sobre isso.
 
 ### ADR-017 — Base de custo unificada em Relatórios: `compra_material` em vez de `vw_peca_custo`
 

@@ -1504,7 +1504,7 @@ de custo são diferentes por design — ver ADR-017.
 - [frontend/templates/configuracoes/index.html](frontend/templates/configuracoes/index.html)
 - [frontend/templates/configuracoes/trocar_senha.html](frontend/templates/configuracoes/trocar_senha.html)
 
-3 blocos:
+3 blocos + 1 subbloco de backup:
 1. **Sua conta** — usuário, tipo, **senha atualizada em** (vem de
    `admin_credencial.atualizado_em`) e botão "Trocar senha" que leva
    para `/configuracoes/trocar-senha`.
@@ -1516,6 +1516,16 @@ de custo são diferentes por design — ver ADR-017.
    diagnóstico técnico fica fora desta página.
 3. **Banco de dados** — badge **Ativo/Indisponível**, tamanho em KB
    e última atualização. Sem mais caminho de arquivo ou comando técnico.
+4. **Backup e restauração** (subbloco dentro de "Banco de dados"):
+   - **Baixar backup** → `GET /configuracoes/backup`: compacta o banco em
+     memória (`io.BytesIO` + `zipfile`) e serve como download
+     `atoriart_backup_YYYY-MM-DD.zip`. Nenhum arquivo é gravado em disco.
+   - **Restaurar banco** → `POST /configuracoes/restaurar`: aceita `.sqlite3`
+     ou `.zip`, salva em arquivo temporário, valida (SQLite válido + tabelas
+     obrigatórias presentes), e só então substitui o banco atual com
+     `shutil.copy2`. Em caso de falha, banco original permanece intacto.
+   - **Atenção:** restaurar um backup antigo também restaura a senha que estava
+     gravada nele (tabela `admin_credencial`). O flash de sucesso avisa o usuário.
 
 **Trocar senha pela UI ([ADR-014](#adr-014--credencial-do-admin-no-banco-trocar-senha-pela-ui)):**
 formulário em [trocar_senha.html](frontend/templates/configuracoes/trocar_senha.html)

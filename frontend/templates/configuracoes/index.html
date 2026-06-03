@@ -108,6 +108,44 @@
         </div>
       {% endif %}
     </dl>
+
+    {% if db_ativo %}
+    <div class="config-backup">
+      <h3 class="config-backup__titulo">Backup e restauração</h3>
+
+      <div class="config-backup__acao">
+        <a class="btn btn--ghost"
+           href="{{ url_for('configuracoes.backup') }}">
+          Baixar backup
+        </a>
+        <p class="config-backup__hint">
+          Gera um arquivo <code>.zip</code> com o banco de dados atual.
+        </p>
+      </div>
+
+      <div class="config-backup__acao">
+        <form method="POST"
+              action="{{ url_for('configuracoes.restaurar') }}"
+              enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <label class="config-backup__label" for="banco">
+            Restaurar banco:
+          </label>
+          <div class="config-backup__linha">
+            <input class="config-backup__file" type="file" id="banco"
+                   name="banco" accept=".sqlite3,.zip" required />
+            <button class="btn btn--ghost btn--danger" type="submit">
+              Restaurar
+            </button>
+          </div>
+          <p class="config-backup__aviso">
+            &#9888; Atenção: substituirá todos os dados atuais pelo arquivo
+            selecionado. Esta ação não pode ser desfeita.
+          </p>
+        </form>
+      </div>
+    </div>
+    {% endif %}
   </section>
 </main>
 {% endblock %}

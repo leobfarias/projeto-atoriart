@@ -104,6 +104,68 @@
   border-color: rgba(177, 58, 58, 0.3);
 }
 
+/* ---------- Bloco de backup / restauração ---------- */
+.config-backup {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.config-backup__titulo {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 4px;
+}
+
+.config-backup__acao {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.config-backup__hint {
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.config-backup__label {
+  font-size: 0.88rem;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.config-backup__linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.config-backup__file {
+  font-size: 0.88rem;
+  color: var(--color-text);
+}
+
+.config-backup__aviso {
+  font-size: 0.82rem;
+  color: var(--color-danger);
+  margin: 0;
+}
+
+.btn--danger {
+  color: var(--color-danger);
+  border-color: rgba(177, 58, 58, 0.35);
+}
+.btn--danger:hover {
+  background: rgba(177, 58, 58, 0.06);
+  border-color: rgba(177, 58, 58, 0.5);
+}
+
 /* ---------- Badges de status ---------- */
 .badge-cfg {
   display: inline-block;

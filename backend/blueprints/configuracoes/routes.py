@@ -1,6 +1,7 @@
 """Rotas da página de Configurações."""
 from flask import (
-    Blueprint, current_app, flash, redirect, render_template, request, url_for
+    Blueprint, current_app, flash, redirect, render_template,
+    request, send_file, url_for,
 )
 
 from backend.security import login_required, logout_session, require_csrf
@@ -45,3 +46,31 @@ def trocar_senha():
         erros={},
         valores={},
     )
+
+
+@configuracoes_bp.route("/backup")
+@login_required
+def backup():
+    buffer, nome_arquivo = configuracoes_service.gerar_backup()
+    return send_file(
+        buffer,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=nome_arquivo,
+    )
+
+
+@configuracoes_bp.route("/restaurar", methods=["POST"])
+@login_required
+def restaurar():
+    require_csrf()
+    arquivo = request.files.get("banco")
+    erro = configuracoes_service.restaurar_backup(arquivo)
+    if erro:
+        flash(erro, "error")
+    else:
+        flash(
+            "Banco restaurado com sucesso. Os dados foram atualizados.",
+            "success",
+        )
+    return redirect(url_for("configuracoes.index"))
